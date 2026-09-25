@@ -94,3 +94,55 @@ async def fake_embed(texts: list[str]) -> list[list[float]]:
 
 async def fake_count(texts: list[str]) -> list[int]:
     return [len(t.split()) for t in texts]
+
+
+@pytest.fixture
+async def api(pg, monkeypatch):
+    """ASGI client on the real test DB; storage + queue replaced by in-memory fakes."""
+    import httpx
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    from app.core import queue, storage
+    from app.core.config import get_settings
+    from app.db import session as sess_module
+    from app.main import app
+
+    await pg.execute(text("TRUNCATE users, refresh_tokens CASCADE"))
+    await pg.commit()
+    engine = create_async_engine(get_settings().postgres_dsn, poolclass=NullPool)
+    monkeypatch.setattr(sess_module, "async_engine", engine)
+    monkeypatch.setattr(
+        sess_module, "AsyncSessionLocal", async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    )
+
+    blobs: dict[str, bytes] = {}
+    jobs: list[tuple] = []
+
+    async def put_bytes(key: str, data: bytes, content_type: str = "application/octet-stream") -> None:
+        blobs[key] = data
+
+    async def get_bytes(key: str) -> bytes:
+        return blobs[key]
+
+    async def enqueue(name: str, *args: object) -> None:
+        jobs.append((name, *args))
+
+    monkeypatch.setattr(storage, "put_bytes", put_bytes)
+    monkeypatch.setattr(storage, "get_bytes", get_bytes)
+    monkeypatch.setattr(queue, "enqueue", enqueue)
+
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
+            client.blobs, client.jobs = blobs, jobs  # type: ignore[attr-defined]
+            yield client
+    await engine.dispose()
+
+
+async def login(client, username: str = "admin", password: str | None = None) -> dict:
+    pw = password or os.environ["ADMIN_PASSWORD"]
+    r = await client.post("/api/v1/auth/login", data={"username": username, "password": pw})
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}

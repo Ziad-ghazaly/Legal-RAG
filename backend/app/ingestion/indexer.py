@@ -140,9 +140,11 @@ async def index_documents(
     session: AsyncSession,
     docs: list[DocumentIn],
     collection_id: int,
-    count_tokens: CountTokens = embedder.count_tokens,
-    embed: Embed = embedder.embed_texts,
+    count_tokens: CountTokens | None = None,
+    embed: Embed | None = None,
 ) -> dict:
+    count_tokens = count_tokens or embedder.count_tokens
+    embed = embed or embedder.embed_texts
     stats: dict = {"documents": 0, "units": 0, "chunks": 0, "dropped": [], "errors": []}
     for doc in docs:
         try:

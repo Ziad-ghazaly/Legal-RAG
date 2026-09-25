@@ -8,6 +8,7 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
 from app.core.startup_guard import Rule1Violation, enforce_rule_one
 from app.db import session as _db_session
+from workers.tasks import run_ingestion_job
 
 
 async def _startup(ctx: dict) -> None:
@@ -34,7 +35,7 @@ def _redis_settings() -> RedisSettings:
 
 
 class WorkerSettings:
-    functions: ClassVar[list] = []  # P1 adds ingestion + review tasks
+    functions: ClassVar[list] = [run_ingestion_job]
     on_startup = _startup
     on_shutdown = _shutdown
 

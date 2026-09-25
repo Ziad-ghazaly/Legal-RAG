@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.admin.acl import router as admin_acl_router
 from app.api.admin.ingestion import router as admin_ingestion_router
 from app.api.auth import router as auth_router
 from app.api.health import router as health_router
@@ -57,6 +58,7 @@ def create_app() -> FastAPI:
     app.include_router(metrics_router)
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(admin_ingestion_router, prefix="/api/v1")
+    app.include_router(admin_acl_router, prefix="/api/v1")
     return app
 
 
