@@ -220,3 +220,37 @@ async def test_claims_not_grounded_in_the_opinion_are_dropped() -> None:
     ]})
     claims, _ = await extract_claims(llm, opinion, question=None)
     assert [c.text_ar for c in claims] == ["يستحق العامل إجازة سنوية مدفوعة الأجر ثلاثين يوماً"]
+
+
+# ── final-review finding #1: quote validation must be verbatim and meaning-preserving ──
+
+SRC_ALLOW = "يجوز لصاحب العمل إنهاء العقد بعد إخطار العامل كتابة قبل ثلاثة أشهر."
+SRC_FORBID = "لا يجوز لصاحب العمل إنهاء عقد العامل غير محدد المدة إلا بعد إخطاره."
+
+
+def _span(quote: str, source: str):
+    from app.verification.validate import _source_span
+
+    return _source_span(quote, source)
+
+
+def test_added_negation_is_not_a_verbatim_quote() -> None:
+    assert _span("لا يجوز لصاحب العمل إنهاء العقد", SRC_ALLOW) is None
+
+
+def test_quote_with_invented_extra_clause_is_rejected() -> None:
+    assert _span("يجوز لصاحب العمل إنهاء العقد بعد إخطار العامل مع دفع التعويض الكامل والمكافأة", SRC_ALLOW) is None
+
+
+def test_one_word_quote_is_rejected() -> None:
+    assert _span("العقد", SRC_ALLOW) is None
+
+
+def test_dropped_negation_substring_is_rejected() -> None:
+    assert _span("يجوز لصاحب العمل إنهاء عقد العامل غير محدد المدة", SRC_FORBID) is None
+
+
+def test_genuine_quotes_still_pass_with_word_boundaries() -> None:
+    assert _span("لا يجوز لصاحب العمل إنهاء عقد العامل", SRC_FORBID) == "لا يجوز لصاحب العمل إنهاء عقد العامل"
+    # small OCR-ish typo tolerated, span snapped to whole source words
+    assert _span("إنهاء العقد بعد اخطار العامل كتابه", SRC_ALLOW) == "إنهاء العقد بعد إخطار العامل كتابة"
