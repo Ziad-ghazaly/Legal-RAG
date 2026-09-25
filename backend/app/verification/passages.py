@@ -1,5 +1,6 @@
 """Evidence assembly per claim (brief §6.7): full-mode retrieval, pinned cited refs,
-stable review-wide P# ids deduped by unit, parent expansion, per-claim token budget."""
+stable review-wide P# ids (per article unit for legislation, per chunk for rulings and
+tables), parent expansion for clause splits, per-claim token budget."""
 
 from datetime import date
 
@@ -7,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Unit
-from app.retrieval.exact_ref import Citation
+from app.retrieval.exact_ref import Citation, normalize_law_number
 from app.retrieval.search import Hit, SearchParams, search
 from app.verification.types import ClaimIn, Passage
 
@@ -20,7 +21,9 @@ def _citations(claim: ClaimIn) -> list[Citation]:
     out = []
     for r in claim.cited_refs:
         if r.get("article") and r.get("law_number") and r.get("year"):
-            out.append(Citation(int(r["article"]), str(r["law_number"]), int(r["year"])))
+            out.append(
+                Citation(int(r["article"]), normalize_law_number(r["law_number"]), int(r["year"]))
+            )
     return out
 
 
@@ -75,9 +78,12 @@ async def gather_passages(
         for h in res.hits:
             if budget + h.token_count > CLAIM_TOKEN_BUDGET and not h.pinned:
                 continue
-            p = by_unit.get(h.unit_id)
+            # Legislation: one passage per citable unit (article). Rulings/opinions/tables:
+            # one per chunk — their chunks are distinct sections, not clauses of one article.
+            key = h.unit_id if h.chunk_kind in ("article", "clause_split") else h.chunk_id
+            p = by_unit.get(key)
             if p is None:
-                p = by_unit[h.unit_id] = _passage(f"P{len(by_unit) + 1}", h)
+                p = by_unit[key] = _passage(f"P{len(by_unit) + 1}", h)
                 if h.chunk_kind == "clause_split":
                     clause_units.add(h.unit_id)
             if p not in chosen:

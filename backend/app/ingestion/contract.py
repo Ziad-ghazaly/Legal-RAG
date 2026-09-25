@@ -57,6 +57,13 @@ class DocumentIn(BaseModel):
     source_uri: str | None = None
     units: list[UnitIn] = Field(min_length=1)
 
+    @field_validator("number", mode="before")
+    @classmethod
+    def _law_number(cls, v: object) -> object:
+        from app.retrieval.exact_ref import normalize_law_number
+
+        return normalize_law_number(v) if v is not None and str(v).strip() else None
+
     @field_validator("doc_type")
     @classmethod
     def _known_type(cls, v: str) -> str:

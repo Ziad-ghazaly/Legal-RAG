@@ -97,3 +97,21 @@ async def test_bad_document_is_reported_and_others_continue(pg) -> None:
         collection_id=1, count_tokens=fake_count, embed=fake_embed)
     assert [e["doc_id"] for e in stats["errors"]] == ["clash"]
     assert stats["documents"] == 2
+
+
+@pytest.mark.asyncio
+async def test_duplicate_keeps_the_in_force_copy_over_a_repealed_one(pg) -> None:
+    """Final-review #4: a repealed law ingested first must not swallow the in-force re-enactment."""
+    old = law(doc_id="old-law", status="repealed", units=[
+        {"unit_id": "old-law/a41", "level": "article", "article_number": 41, "text": A41}])
+    new = law(doc_id="new-law", units=[
+        {"unit_id": "new-law/a41", "level": "article", "article_number": 41, "text": A41}])
+    await index_documents(pg, [old], collection_id=1, count_tokens=fake_count, embed=fake_embed)
+    stats = await index_documents(pg, [new], collection_id=1, count_tokens=fake_count, embed=fake_embed)
+    units = set((await pg.execute(select(Chunk.unit_id))).scalars())
+    assert units == {"new-law/a41"}
+    assert stats["chunks"] == 1 and stats["dropped"][0]["reason"] == "superseded_duplicate"
+    # and the other order: the repealed copy arriving later is the one dropped
+    stats = await index_documents(pg, [old], collection_id=1, count_tokens=fake_count, embed=fake_embed)
+    assert set((await pg.execute(select(Chunk.unit_id))).scalars()) == {"new-law/a41"}
+    assert stats["dropped"][0]["reason"] == "duplicate"

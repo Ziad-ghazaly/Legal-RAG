@@ -56,3 +56,10 @@ def test_eastern_digit_article_numbers_are_accepted() -> None:
     row = {**GOOD, "units": [{**GOOD["units"][0], "article_number": "٤١"}]}
     docs, errors = parse_jsonl(_jsonl(row))
     assert errors == [] and docs[0].units[0].article_number == 41
+
+
+def test_law_numbers_are_normalized_like_citations() -> None:
+    """Final-review #8: '٦', '06', ' 6 ' must all pin 'القانون رقم 6'."""
+    for raw in ("٦", "06", " 6 "):
+        docs, errors = parse_jsonl(_jsonl({**GOOD, "number": raw}))
+        assert errors == [] and docs[0].number == "6"

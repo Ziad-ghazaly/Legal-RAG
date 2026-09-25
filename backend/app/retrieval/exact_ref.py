@@ -14,6 +14,12 @@ _LAW = (
 _CITATION = re.compile(_ARTICLE + f"(?:{_LAW})?")
 
 
+def normalize_law_number(value: object) -> str:
+    """'٦', '06', ' 6 ' → '6' — the same key on documents and in citations."""
+    v = normalize_for_search(str(value)).strip()
+    return v.lstrip("0") or v
+
+
 @dataclass(frozen=True)
 class Citation:
     article: int
@@ -24,7 +30,8 @@ class Citation:
 def parse_citations(text: str) -> list[Citation]:
     out: list[Citation] = []
     for m in _CITATION.finditer(normalize_for_search(text)):
-        c = Citation(int(m[1]), m[2], int(m[3]) if m[3] else None)
+        number = normalize_law_number(m[2]) if m[2] else None
+        c = Citation(int(m[1]), number, int(m[3]) if m[3] else None)
         if c not in out:
             out.append(c)
     return out

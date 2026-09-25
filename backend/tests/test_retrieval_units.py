@@ -40,3 +40,7 @@ def test_parse_decree_law_citation() -> None:
     assert parse_citations("المادة 5 من المرسوم بقانون رقم 38 لسنة 1980") == [
         Citation(article=5, number="38", year=1980)
     ]
+
+
+def test_citation_law_number_drops_leading_zeros() -> None:
+    assert parse_citations("المادة 41 من القانون رقم 06 لسنة 2010") == [Citation(41, "6", 2010)]

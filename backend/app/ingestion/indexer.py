@@ -7,6 +7,7 @@ logged. Every embedding goes through app.retrieval.embedder (Rule 1).
 
 import uuid
 from collections.abc import Awaitable, Callable
+from datetime import date
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,19 +44,34 @@ async def _index_one(
 
     await session.execute(delete(Document).where(Document.id == doc.doc_id))
 
+    # Exact duplicates inside a collection: keep one copy — the in-force, higher-authority,
+    # newer one (brief §5.5.7). A worse existing copy is replaced; a worse new copy dropped.
+    authority = authority_for(doc.doc_type, doc.court_level)
+    default_from = doc.effective_date or doc.issue_date
     hashes = {c.content_hash for _, c in drafts}
-    taken = set(
-        (
+    existing = {
+        r.content_hash: r
+        for r in (
             await session.execute(
-                select(Chunk.content_hash).where(
-                    Chunk.collection_id == collection_id, Chunk.content_hash.in_(hashes)
-                )
+                select(
+                    Chunk.id,
+                    Chunk.unit_id,
+                    Chunk.content_hash,
+                    Chunk.status,
+                    Chunk.authority_level,
+                    Chunk.valid_from,
+                ).where(Chunk.collection_id == collection_id, Chunk.content_hash.in_(hashes))
             )
-        ).scalars()
-    )
+        )
+    }
     kept: list[tuple[UnitIn, ChunkDraft]] = []
+    seen: set[str] = set()
     for unit, c in drafts:
-        if c.content_hash in taken:
+        in_force = _status(doc, unit) != "repealed"
+        mine = (in_force, authority, unit.valid_from or default_from or date.min)
+        old = existing.get(c.content_hash)
+        theirs = old and (old.status != "repealed", old.authority_level, old.valid_from or date.min)
+        if c.content_hash in seen or (old and mine <= theirs):
             dropped.append(
                 {
                     "doc_id": doc.doc_id,
@@ -65,7 +81,18 @@ async def _index_one(
                 }
             )
             continue
-        taken.add(c.content_hash)
+        if old:
+            await session.execute(delete(Chunk).where(Chunk.id == old.id))
+            dropped.append(
+                {
+                    "doc_id": doc.doc_id,
+                    "unit_id": old.unit_id,
+                    "reason": "superseded_duplicate",
+                    "kept": unit.unit_id,
+                }
+            )
+            del existing[c.content_hash]
+        seen.add(c.content_hash)
         kept.append((unit, c))
 
     inputs = [
@@ -74,7 +101,6 @@ async def _index_one(
     ]
     vectors = await embed(inputs)
 
-    authority = authority_for(doc.doc_type, doc.court_level)
     model = get_settings().embedding_model
     session.add(
         Document(
@@ -98,7 +124,6 @@ async def _index_one(
         )
     )
     await session.flush()
-    default_from = doc.effective_date or doc.issue_date
     for unit in doc.units:
         session.add(
             Unit(
