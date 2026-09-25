@@ -25,6 +25,9 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.50b0,<1",
     "anthropic>=0.42,<1",
     "psycopg2-binary>=2.9,<3",  # alembic env.py uses the sync psycopg2 driver
+    "pymupdf>=1.24,<2",
+    "python-docx>=1.1,<2",
+    "rapidfuzz>=3.9,<4",
 ]
 
 [project.optional-dependencies]

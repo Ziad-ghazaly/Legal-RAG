@@ -132,7 +132,7 @@ def _filters(params: SearchParams, collections: list[int] | None) -> tuple[str, 
 async def _vector(
     session: AsyncSession, query: str, where: str, binds: dict
 ) -> list[tuple[str, float]]:
-    (vec,) = await embedder.embed_texts([embedder.build_query_input(query)])
+    (vec,) = await embedder.aembed_texts([embedder.build_query_input(query)])
     qv = "[" + ",".join(f"{x:.7f}" for x in vec) + "]"
     await session.execute(text(f"SET LOCAL hnsw.ef_search = {HNSW_EF_SEARCH}"))
     await session.execute(text("SET LOCAL hnsw.iterative_scan = strict_order"))

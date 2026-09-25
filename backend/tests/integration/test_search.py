@@ -41,7 +41,7 @@ def art(uid: str, n: int, text: str, **kw: object) -> dict:
 async def corpus(pg, monkeypatch):
     from app.retrieval import embedder, rerank
 
-    monkeypatch.setattr(embedder, "embed_texts", fake_embed)
+    monkeypatch.setattr(embedder, "aembed_texts", fake_embed)
     monkeypatch.setattr(rerank, "rerank", fake_rerank)
     labor = law("labor", "6", [
         art("labor/a41", 41, ANNUAL),

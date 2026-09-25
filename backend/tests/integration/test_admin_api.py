@@ -44,7 +44,7 @@ async def test_ingestion_job_upload_then_worker_indexes_it(api, monkeypatch) -> 
     from app.retrieval import embedder
     from workers.tasks import run_ingestion_job
 
-    monkeypatch.setattr(embedder, "embed_texts", fake_embed)
+    monkeypatch.setattr(embedder, "aembed_texts", fake_embed)
     monkeypatch.setattr(embedder, "count_tokens", fake_count)
     admin = await login(api)
     body = (json.dumps(LAW, ensure_ascii=False) + "\n{broken\n").encode()

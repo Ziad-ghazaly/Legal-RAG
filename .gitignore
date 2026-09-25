@@ -17,3 +17,5 @@ build/
 .DS_Store
 uv.lock.local
 .superpowers/
+production_rules/reports/
+production_rules/.env

@@ -1,0 +1,12 @@
+// TEMPLATE — replace every line with real queries validated by a legal reviewer. Unit IDs below are placeholders.
+// Lines starting with // are ignored by the runner.
+{"id": "q001", "query_ar": "ما هي مدة الإشعار المطلوبة لإنهاء عقد العمل غير محدد المدة وفق المادة 44 من قانون العمل في القطاع الأهلي؟", "relevant_unit_ids": ["kw-law-6-2010/a44"], "as_of_date": "2026-09-01", "collections": [1], "category": "exact_citation"}
+{"id": "q002", "query_ar": "كم يوماً يجب أن يُخطر صاحب العمل العامل قبل إنهاء العقد؟", "relevant_unit_ids": ["kw-law-6-2010/a44"], "as_of_date": "2026-09-01", "collections": [1], "category": "paraphrase"}
+{"id": "q003", "query_ar": "الشركة فنشتني بدون ما تبلغني قبلها، شنو حقي؟", "relevant_unit_ids": ["kw-law-6-2010/a44", "kw-law-6-2010/a41"], "as_of_date": "2026-09-01", "collections": [1], "category": "colloquial"}
+{"id": "q004", "query_ar": "نص المادة ٤٤ من قانون العمل رقم ٦ لسنة ٢٠١٠", "relevant_unit_ids": ["kw-law-6-2010/a44"], "as_of_date": "2026-09-01", "collections": [1], "category": "digits_eastern"}
+{"id": "q005", "query_ar": "الحد الأدنى لرأس مال شركة التأمين المرخصة", "relevant_unit_ids": ["kw-reg-125-2019/a12@2025"], "wrong_version_unit_ids": ["kw-reg-125-2019/a12@2019"], "as_of_date": "2026-09-01", "collections": [2], "category": "amended"}
+{"id": "q006", "query_ar": "الحد الأدنى لرأس مال شركة التأمين المرخصة قبل تعديل 2025", "relevant_unit_ids": ["kw-reg-125-2019/a12@2019"], "wrong_version_unit_ids": ["kw-reg-125-2019/a12@2025"], "as_of_date": "2024-06-01", "collections": [2], "category": "amended"}
+{"id": "q007", "query_ar": "تنظيم أعمال التأمين في الكويت والجهة الرقابية المختصة", "relevant_unit_ids": ["kw-law-125-2019/a2"], "as_of_date": "2026-09-01", "collections": [2], "category": "repealed_trap"}
+{"id": "q008", "query_ar": "حقوق العامل عند انتهاء الخدمة من مكافأة ورصيد إجازات", "relevant_unit_ids": ["kw-law-6-2010/a51", "kw-law-6-2010/a70"], "as_of_date": "2026-09-01", "collections": [1], "category": "multi_article"}
+{"id": "q009", "query_ar": "يستحق العامل مكافأة نهاية الخدمة كاملة إذا استقال بعد عشر سنوات من الخدمة.", "relevant_unit_ids": ["kw-law-6-2010/a51", "kw-law-6-2010/a53"], "as_of_date": "2026-09-01", "collections": [1], "category": "claim"}
+{"id": "q010", "query_ar": "لا يجوز لصاحب العمل إنهاء عقد العامل أثناء تمتعه بإجازاته.", "relevant_unit_ids": ["kw-law-6-2010/a46"], "as_of_date": "2026-09-01", "collections": [1], "category": "claim"}

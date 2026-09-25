@@ -150,7 +150,7 @@ async def index_documents(
     embed: Embed | None = None,
 ) -> dict:
     count_tokens = count_tokens or embedder.count_tokens
-    embed = embed or embedder.embed_texts
+    embed = embed or embedder.aembed_texts
     stats: dict = {"documents": 0, "units": 0, "chunks": 0, "dropped": [], "errors": []}
     for doc in docs:
         try:

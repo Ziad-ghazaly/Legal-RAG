@@ -2,10 +2,14 @@
 
 `build_passage_input`, `build_query_input`, and `embed_texts` are the ONLY
 code path used to embed text anywhere in v3. Ingestion and query both call
-these functions.
+these functions (the app awaits `aembed_texts`, the same TEI call).
+
+`embed_texts` is synchronous because production_rules rule 1 imports and calls
+it directly: `embed_texts(texts: list[str]) -> list[list[float]]`.
 """
 
 import asyncio
+import time
 from typing import Any
 
 import httpx
@@ -40,19 +44,52 @@ def build_query_input(query: str) -> str:
     return normalize_for_embedding(query)
 
 
-async def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Batched POST to TEI /embed. 3 retries, exp backoff, no fallback."""
-    if not texts:
-        return []
-
+def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Sync TEI /embed (production_rules contract). Same batching, retries, and checks."""
     settings = get_settings()
     out: list[list[float]] = []
-
     for start in range(0, len(texts), _BATCH):
         batch = texts[start : start + _BATCH]
-        vecs = await _embed_one_batch(settings.tei_embed_url, batch, settings.embedding_dim)
-        out.extend(vecs)
+        last_exc: Exception | None = None
+        for attempt in range(_RETRIES):
+            try:
+                with httpx.Client(timeout=_TIMEOUT_S) as client:
+                    r = client.post(f"{settings.tei_embed_url}/embed", json={"inputs": batch})
+                if r.status_code != 200:
+                    raise EmbedderError(f"TEI /embed returned {r.status_code}: {r.text[:200]}")
+                out.extend(_check_dims(r.json(), settings.embedding_dim))
+                break
+            except EmbedderError:
+                raise
+            except Exception as e:
+                last_exc = e
+                if attempt == _RETRIES - 1:
+                    raise EmbedderError(f"TEI /embed unreachable: {last_exc!r}") from e
+                time.sleep(_BACKOFF_S[attempt])
     return out
+
+
+async def aembed_texts(texts: list[str]) -> list[list[float]]:
+    """Async TEI /embed used by the app. 3 retries, exp backoff, no fallback."""
+    settings = get_settings()
+    out: list[list[float]] = []
+    for start in range(0, len(texts), _BATCH):
+        batch = texts[start : start + _BATCH]
+        data = await post_tei(f"{settings.tei_embed_url}/embed", {"inputs": batch})
+        out.extend(_check_dims(data, settings.embedding_dim))
+    return out
+
+
+def _check_dims(data: Any, expected_dim: int) -> list[list[float]]:
+    if not isinstance(data, list) or not data:
+        raise EmbedderError("TEI /embed returned empty body")
+    for v in data:
+        if not isinstance(v, list) or len(v) != expected_dim:
+            raise EmbedderError(
+                f"TEI /embed returned wrong dim: expected {expected_dim}, "
+                f"got {len(v) if isinstance(v, list) else type(v)}"
+            )
+    return data
 
 
 async def post_tei(url: str, payload: dict[str, Any]) -> Any:
@@ -72,21 +109,6 @@ async def post_tei(url: str, payload: dict[str, Any]) -> Any:
             if attempt < _RETRIES - 1:
                 await asyncio.sleep(_BACKOFF_S[attempt])
     raise EmbedderError(f"TEI {url} unreachable after {_RETRIES} attempts: {last_exc!r}")
-
-
-async def _embed_one_batch(
-    base_url: str, batch: list[str], expected_dim: int
-) -> list[list[float]]:
-    data = await post_tei(f"{base_url}/embed", {"inputs": batch})
-    if not isinstance(data, list) or not data:
-        raise EmbedderError("TEI /embed returned empty body")
-    for v in data:
-        if not isinstance(v, list) or len(v) != expected_dim:
-            raise EmbedderError(
-                f"TEI /embed returned wrong dim: expected {expected_dim}, "
-                f"got {len(v) if isinstance(v, list) else type(v)}"
-            )
-    return data
 
 
 async def count_tokens(texts: list[str]) -> list[int]:

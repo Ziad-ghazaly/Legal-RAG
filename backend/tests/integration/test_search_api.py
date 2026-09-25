@@ -9,7 +9,7 @@ from tests.integration.test_search import NOTICE, SHIPS, art, fake_rerank, law
 async def seeded(api, pg, monkeypatch):
     from app.retrieval import embedder, rerank
 
-    monkeypatch.setattr(embedder, "embed_texts", fake_embed)
+    monkeypatch.setattr(embedder, "aembed_texts", fake_embed)
     monkeypatch.setattr(rerank, "rerank", fake_rerank)
     await index_documents(pg, [law("labor", "6", [art("labor/a44", 44, NOTICE)]),
                                law("ships", "9", [art("ships/a1", 1, SHIPS)])],
@@ -63,7 +63,7 @@ async def test_tei_outage_is_a_clean_arabic_503(seeded, monkeypatch) -> None:
     async def down(texts):
         raise embedder.EmbedderError("TEI unreachable")
 
-    monkeypatch.setattr(embedder, "embed_texts", down)
+    monkeypatch.setattr(embedder, "aembed_texts", down)
     r = await seeded.post("/api/retrieval/search", json=BODY, headers=await login(seeded))
     assert r.status_code == 503 and "خدمة" in r.json()["detail"]
 
