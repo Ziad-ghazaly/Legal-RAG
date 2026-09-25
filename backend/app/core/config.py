@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     # --- redis / s3 / tei ---
     redis_url: str = "redis://v3_redis:6379/0"
-    s3_endpoint_url: str = "http://v3_minio:9000"
+    s3_endpoint_url: str = "http://minio:9000"  # alias: botocore rejects "_" in hostnames
     s3_access_key: str = "legalrag"
     s3_secret_key: str = "legalrag-secret"
     s3_bucket_uploads: str = "v3-uploads"

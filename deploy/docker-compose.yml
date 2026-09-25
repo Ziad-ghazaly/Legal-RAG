@@ -58,7 +58,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    networks: [v3_net]
+    networks:
+      v3_net:
+        aliases: [minio]  # botocore rejects "_" in hostnames
 
   v3_tei_embed:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
@@ -99,7 +101,7 @@ services:
     environment:
       POSTGRES_HOST: v3_pgbouncer
       REDIS_URL: redis://v3_redis:6379/0
-      S3_ENDPOINT_URL: http://v3_minio:9000
+      S3_ENDPOINT_URL: http://minio:9000
       TEI_EMBED_URL: http://v3_tei_embed:80
       TEI_RERANK_URL: http://v3_tei_rerank:80
     command: >
@@ -128,6 +130,9 @@ services:
     environment:
       POSTGRES_HOST: v3_pgbouncer
       REDIS_URL: redis://v3_redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      TEI_EMBED_URL: http://v3_tei_embed:80
+      TEI_RERANK_URL: http://v3_tei_rerank:80
     command: ["arq", "workers.arq_app.WorkerSettings"]
     depends_on:
       v3_pgbouncer: {condition: service_started}
