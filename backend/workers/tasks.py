@@ -48,3 +48,61 @@ async def run_ingestion_job(ctx: dict, job_id: str) -> None:
         }
         await session.commit()
         log.info("ingestion_completed", documents=stats["documents"], chunks=stats["chunks"])
+
+
+def make_llm():  # patched in tests
+    from app.llm.claude_client import ClaudeClient
+
+    return ClaudeClient()
+
+
+GENERIC_ERROR_AR = "تعذر إكمال التحقق بسبب خطأ غير متوقع. يرجى المحاولة لاحقاً."
+
+
+async def run_review(ctx: dict, review_id: str) -> None:
+    from app.core import events
+    from app.db.models import Review, User
+    from app.llm.claude_client import ClaudeError
+    from app.retrieval.embedder import EmbedderError
+    from app.services.users import allowed_collections
+    from app.verification.parse import ParseError
+    from app.verification.pipeline import llm_call_rows, run_pipeline
+
+    log = get_logger("review").bind(review_id=review_id)
+    rid = uuid.UUID(review_id)
+    llm = make_llm()
+
+    async def publish(stage: str) -> None:
+        await events.publish(review_id, stage)
+
+    if db.AsyncSessionLocal is None:
+        db._bootstrap()
+    async with db.AsyncSessionLocal() as session:  # type: ignore[misc]
+        review = await session.get(Review, rid)
+        if review is None:
+            log.error("review_missing")
+            return
+        user = await session.get(User, review.user_id)
+        try:
+            await run_pipeline(
+                session, review, llm, await allowed_collections(session, user), publish
+            )
+            session.add_all(llm_call_rows(rid, llm))
+            await session.commit()
+            await events.publish(review_id, "done", status=review.status, score=review.score)
+            log.info("review_done", status=review.status, score=review.score)
+            return
+        except (ParseError, ClaudeError) as e:
+            message = e.message_ar
+        except EmbedderError:
+            message = "خدمة البحث غير متاحة مؤقتاً، يرجى المحاولة لاحقاً."
+        except Exception:
+            log.exception("review_crashed")
+            message = GENERIC_ERROR_AR
+        await session.rollback()
+        review = await session.get(Review, rid)
+        review.status, review.error_ar = "failed", message  # type: ignore[union-attr]
+        session.add_all(llm_call_rows(rid, llm))
+        await session.commit()
+        await events.publish(review_id, "failed", error_ar=message)
+        log.warning("review_failed", error=message)

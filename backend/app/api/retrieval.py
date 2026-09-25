@@ -7,12 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.admin.acl import user_collection_ids
 from app.api.deps import require_role
 from app.db.models import User
 from app.db.session import get_session
 from app.retrieval.embedder import EmbedderError
 from app.retrieval.search import Mode, SearchParams, search
+from app.services.users import allowed_collections
 
 router = APIRouter(tags=["retrieval"])
 
@@ -58,10 +58,6 @@ class HitOut(BaseModel):
 class SearchOut(BaseModel):
     results: list[HitOut]
     latency_ms: float
-
-
-async def allowed_collections(session: AsyncSession, user: User) -> list[int] | None:
-    return None if user.role == "admin" else await user_collection_ids(session, user.id)
 
 
 @router.post("/retrieval/search", response_model=SearchOut)

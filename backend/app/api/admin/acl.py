@@ -13,6 +13,7 @@ from app.api.deps import require_role
 from app.core.security import hash_password
 from app.db.models import Collection, User, UserCollection
 from app.db.session import get_session
+from app.services.users import user_collection_ids
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 Admin = Annotated[User, Depends(require_role("admin"))]
@@ -47,13 +48,6 @@ class UserOut(BaseModel):
 
 class CollectionIds(BaseModel):
     collection_ids: list[int]
-
-
-async def user_collection_ids(session: AsyncSession, user_id: uuid.UUID) -> list[int]:
-    rows = await session.execute(
-        select(UserCollection.collection_id).where(UserCollection.user_id == user_id)
-    )
-    return sorted(rows.scalars())
 
 
 async def _set_collections(session: AsyncSession, user_id: uuid.UUID, ids: list[int]) -> None:

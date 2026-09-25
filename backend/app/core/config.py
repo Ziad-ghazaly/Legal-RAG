@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     # CPU dev: ~1.6 s per 512-token pair; GPU prod: tens of ms.
     tei_rerank_timeout_s: float = 120.0
 
+    # --- reviews ---
+    daily_review_limit: int = 50
+    max_upload_mb: int = 20
+
     # --- rule 1 invariant ---
     embedding_model: str = "BAAI/bge-m3"
     embedding_dim: int = 1024

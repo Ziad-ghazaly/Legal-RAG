@@ -216,6 +216,8 @@ class Review(Base, TimestampMixin):
         PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
     )
     question: Mapped[str | None] = mapped_column(Text, nullable=True)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_ar: Mapped[str | None] = mapped_column(Text, nullable=True)
     opinion_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
     file_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     as_of_date: Mapped[date | None] = mapped_column(Date, nullable=True)

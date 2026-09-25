@@ -12,6 +12,8 @@ from app.api.admin.ingestion import router as admin_ingestion_router
 from app.api.auth import router as auth_router
 from app.api.health import router as health_router
 from app.api.retrieval import router as retrieval_router
+from app.api.reviews import router as reviews_router
+from app.api.sources import router as sources_router
 from app.core.config import get_settings
 from app.core.logging import RequestIdMiddleware, configure_logging, get_logger
 from app.core.metrics import router as metrics_router
@@ -61,6 +63,8 @@ def create_app() -> FastAPI:
     app.include_router(admin_ingestion_router, prefix="/api/v1")
     app.include_router(admin_acl_router, prefix="/api/v1")
     app.include_router(retrieval_router, prefix="/api/v1")
+    app.include_router(reviews_router, prefix="/api/v1")
+    app.include_router(sources_router, prefix="/api/v1")
     # production_rules rule 3 calls /api/retrieval/search (no version segment).
     app.include_router(retrieval_router, prefix="/api", include_in_schema=False)
     return app

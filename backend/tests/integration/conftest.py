@@ -133,10 +133,19 @@ async def api(pg, monkeypatch):
     monkeypatch.setattr(storage, "get_bytes", get_bytes)
     monkeypatch.setattr(queue, "enqueue", enqueue)
 
+    from app.core import events
+
+    stages: list[tuple] = []
+
+    async def publish(review_id: str, stage: str, **extra: object) -> None:
+        stages.append((review_id, stage))
+
+    monkeypatch.setattr(events, "publish", publish)
+
     async with app.router.lifespan_context(app):
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
-            client.blobs, client.jobs = blobs, jobs  # type: ignore[attr-defined]
+            client.blobs, client.jobs, client.stages = blobs, jobs, stages  # type: ignore[attr-defined]
             yield client
     await engine.dispose()
 

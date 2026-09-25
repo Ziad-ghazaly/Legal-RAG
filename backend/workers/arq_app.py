@@ -8,7 +8,7 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
 from app.core.startup_guard import Rule1Violation, enforce_rule_one
 from app.db import session as _db_session
-from workers.tasks import run_ingestion_job
+from workers.tasks import run_ingestion_job, run_review
 
 
 async def _startup(ctx: dict) -> None:
@@ -30,7 +30,7 @@ async def _shutdown(ctx: dict) -> None:
 
 
 class WorkerSettings:
-    functions: ClassVar[list] = [run_ingestion_job]
+    functions: ClassVar[list] = [run_ingestion_job, run_review]
     on_startup = _startup
     on_shutdown = _shutdown
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)  # arq reads an instance

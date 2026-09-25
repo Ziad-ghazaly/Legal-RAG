@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.security import hash_password
-from app.db.models import User
+from app.db.models import User, UserCollection
 
 
 async def get_user_by_username(session: AsyncSession, username: str) -> User | None:
@@ -45,3 +45,15 @@ async def seed_admin(session: AsyncSession) -> None:
     )
     session.add(admin)
     await session.commit()
+
+
+async def user_collection_ids(session: AsyncSession, user_id: uuid.UUID) -> list[int]:
+    rows = await session.execute(
+        select(UserCollection.collection_id).where(UserCollection.user_id == user_id)
+    )
+    return sorted(rows.scalars())
+
+
+async def allowed_collections(session: AsyncSession, user: User) -> list[int] | None:
+    """Retrieval ACL: None = unrestricted (admin)."""
+    return None if user.role == "admin" else await user_collection_ids(session, user.id)
