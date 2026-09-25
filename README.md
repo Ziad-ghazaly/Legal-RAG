@@ -22,8 +22,8 @@ Ports on host:
 
 ## Status
 
-- [x] **P0 Foundation** — docker stack, auth, Rule 1 guard, health, Swagger, tests (48 pass).
-- [ ] P1 Ingestion + retrieval
+- [x] **P0 Foundation** — docker stack, auth, Rule 1 guard, health, Swagger. Full stack verified in Docker (API via PgBouncer, worker, MinIO, TEI).
+- [x] **P1 Ingestion + retrieval** — JSONL contract, legal-aware chunker, idempotent indexer, ingestion jobs (API → MinIO → arq worker), hybrid retrieval (pgvector + pg_search BM25 → RRF → rerank → authority → pinning), `/api/retrieval/search`. Rules 1 + 2 pass on a real dev corpus. **Gate pending:** rule 3 needs the client's reviewer-validated gold set (≥200 queries) and GPU TEI for the latency gate.
 - [ ] P2 Verification
 - [ ] P3 Frontend
 - [ ] P4 Review workflow
@@ -31,9 +31,9 @@ Ports on host:
 
 ## Tests
 
-Unit tests (48) use SQLite in-memory and cover the invariants:
 ```
-cd backend && pytest
+cd backend && pytest                                   # unit (SQLite)
+V3_INTEGRATION=1 POSTGRES_HOST=localhost POSTGRES_PORT=5532 pytest tests/integration   # real ParadeDB
 ```
 
 Live docker acceptance (Rule-1 drift drill, admin login end-to-end) — see `docs/RUNBOOK.md`.
