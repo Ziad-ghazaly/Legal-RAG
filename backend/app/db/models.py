@@ -15,6 +15,7 @@ from typing import Any
 
 from sqlalchemy import (
     ARRAY,
+    JSON,
     BigInteger,
     Boolean,
     Date,
@@ -25,7 +26,6 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -59,9 +59,8 @@ class User(Base, TimestampMixin):
 class Collection(Base, TimestampMixin):
     __tablename__ = "collections"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    # Integer ids: production_rules rule 3 and its gold set address collections as ints.
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -72,10 +71,8 @@ class UserCollection(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
-    collection_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("collections.id", ondelete="CASCADE"),
-        primary_key=True,
+    collection_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("collections.id", ondelete="CASCADE"), primary_key=True
     )
 
 
@@ -132,8 +129,8 @@ class Document(Base, TimestampMixin):
     jurisdiction: Mapped[str] = mapped_column(String(8), nullable=False, default="KW")
     authority_level: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
     source_uri: Mapped[str | None] = mapped_column(Text, nullable=True)
-    collection_id: Mapped[uuid.UUID | None] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("collections.id"), nullable=True
+    collection_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("collections.id"), nullable=True
     )
 
 
@@ -173,10 +170,8 @@ class Chunk(Base):
     document_id: Mapped[str] = mapped_column(
         String(255), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
     )
-    collection_id: Mapped[uuid.UUID | None] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("collections.id", ondelete="SET NULL"),
-        nullable=True,
+    collection_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("collections.id", ondelete="SET NULL"), nullable=True
     )
     chunk_kind: Mapped[str] = mapped_column(String(32), nullable=False)
     context_header: Mapped[str] = mapped_column(Text, nullable=False)
@@ -368,6 +363,10 @@ class IngestionJob(Base):
     doc_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     submitted_by: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    collection_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("collections.id"), nullable=True
+    )
+    file_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     stats: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
