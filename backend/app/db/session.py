@@ -5,6 +5,7 @@ Engine is created lazily so tests can monkeypatch ``async_engine`` and
 is ever instantiated.
 """
 
+import uuid
 from collections.abc import AsyncGenerator
 from typing import cast
 
@@ -35,6 +36,11 @@ def _bootstrap() -> None:
         pool_pre_ping=True,
         pool_size=10,
         max_overflow=10,
+        # PgBouncer (transaction pooling) cannot keep asyncpg's named prepared statements.
+        connect_args={
+            "statement_cache_size": 0,
+            "prepared_statement_name_func": lambda: f"__asyncpg_{uuid.uuid4()}__",
+        },
     )
     AsyncSessionLocal = async_sessionmaker(
         async_engine, expire_on_commit=False, class_=AsyncSession

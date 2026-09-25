@@ -24,6 +24,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-legalrag}
       DB_NAME: ${POSTGRES_DB:-legalrag}
       POOL_MODE: transaction
+      AUTH_TYPE: scram-sha-256  # Postgres 16 stores SCRAM passwords
     depends_on:
       v3_postgres: {condition: service_healthy}
     ports: ["6532:5432"]
