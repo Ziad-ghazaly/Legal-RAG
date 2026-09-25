@@ -202,3 +202,43 @@ async def test_garbled_opinion_fails_fast_without_calling_claude(world) -> None:
     body = (await world.get(f"/api/v1/reviews/{rid}", headers=user)).json()
     assert body["status"] == "failed" and "بالعربية" in body["error_ar"]
     assert world.claude.calls == []
+
+
+@pytest.mark.asyncio
+async def test_publish_failure_after_commit_does_not_fail_the_review(world, pg, monkeypatch) -> None:
+    """Final-review #2: a Redis blip on the 'done' event must not flip status or double-log LLM calls."""
+    from sqlalchemy import text
+
+    from app.core import events
+    from workers.tasks import run_review
+
+    async def flaky(review_id: str, stage: str, **extra: object) -> None:
+        if stage == "done":
+            raise ConnectionError("redis down")
+
+    monkeypatch.setattr(events, "publish", flaky)
+    user = await login(world, "lawyer", "lawyer-pass")
+    rid = await submit(world, user, opinion_text=OPINION)
+    await run_review({}, rid)
+    body = (await world.get(f"/api/v1/reviews/{rid}", headers=user)).json()
+    assert body["status"] == "accepted"
+    n = (await pg.execute(text("SELECT count(*) FROM llm_calls WHERE review_id = :r"), {"r": rid})).scalar_one()
+    assert n == len(world.claude.usage)
+
+
+@pytest.mark.asyncio
+async def test_reingesting_a_source_keeps_past_review_evidence(world, pg) -> None:
+    """Final-review #5: claim_evidence is an audit record; re-ingestion must not cascade-delete it."""
+    from sqlalchemy import text
+
+    from workers.tasks import run_review
+
+    user = await login(world, "lawyer", "lawyer-pass")
+    rid = await submit(world, user, opinion_text=OPINION)
+    await run_review({}, rid)
+    count = "SELECT count(*) FROM claim_evidence e JOIN claims c ON c.id = e.claim_id WHERE c.review_id = :r"
+    before = (await pg.execute(text(count), {"r": rid})).scalar_one()
+    assert before > 0
+    await index_documents(pg, [law("labor", "6", [art("labor/a41", 41, ANNUAL), art("labor/a44", 44, NOTICE)])],
+                          collection_id=1, count_tokens=fake_count, embed=fake_embed)
+    assert (await pg.execute(text(count), {"r": rid})).scalar_one() == before

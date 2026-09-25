@@ -262,8 +262,9 @@ class ClaimEvidence(Base):
         nullable=False,
         index=True,
     )
-    chunk_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("chunks.id", ondelete="CASCADE"), nullable=False
+    # Audit record: survives re-ingestion of its source (chunk_id → NULL, quote kept).
+    chunk_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("chunks.id", ondelete="SET NULL"), nullable=True
     )
     stance: Mapped[str] = mapped_column(String(32), nullable=False)
     quote_ar: Mapped[str] = mapped_column(Text, nullable=False)

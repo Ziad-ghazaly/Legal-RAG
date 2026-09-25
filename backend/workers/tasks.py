@@ -89,9 +89,6 @@ async def run_review(ctx: dict, review_id: str) -> None:
             )
             session.add_all(llm_call_rows(rid, llm))
             await session.commit()
-            await events.publish(review_id, "done", status=review.status, score=review.score)
-            log.info("review_done", status=review.status, score=review.score)
-            return
         except (ParseError, ClaudeError) as e:
             message = e.message_ar
         except EmbedderError:
@@ -99,6 +96,14 @@ async def run_review(ctx: dict, review_id: str) -> None:
         except Exception:
             log.exception("review_crashed")
             message = GENERIC_ERROR_AR
+        else:
+            # Committed: a progress-event failure must not turn a finished review into "failed".
+            try:
+                await events.publish(review_id, "done", status=review.status, score=review.score)
+            except Exception:
+                log.warning("done_event_not_published")
+            log.info("review_done", status=review.status, score=review.score)
+            return
         await session.rollback()
         review = await session.get(Review, rid)
         review.status, review.error_ar = "failed", message  # type: ignore[union-attr]
