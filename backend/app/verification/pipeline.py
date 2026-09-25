@@ -15,7 +15,7 @@ from app.core.config import get_settings
 from app.db.models import Approval, Claim, ClaimEvidence, LLMCall, Review, ReviewVersion
 from app.retrieval import search as retrieval
 from app.verification.extract import LLM, MAX_CLAIMS, extract_claims
-from app.verification.parse import extract_text
+from app.verification.parse import ensure_opinion_text, extract_text
 from app.verification.passages import gather_passages
 from app.verification.report import similar_opinions, write_report
 from app.verification.scoring import ACCEPT_THRESHOLD, NO_INFO_MESSAGE, score_review
@@ -75,7 +75,7 @@ async def run_pipeline(
         review.opinion_text = extract_text(
             review.file_key, await storage.get_bytes(review.file_key)
         )
-    text = review.opinion_text
+    text = review.opinion_text = ensure_opinion_text(review.opinion_text)
     review.title = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")[:160]
 
     await publish("extracting_claims")

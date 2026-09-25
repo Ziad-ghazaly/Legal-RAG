@@ -10,7 +10,8 @@ from tests.integration.test_search import ANNUAL, NOTICE, SHIPS, art, fake_reran
 
 OPINION = (
     "يستحق العامل وفقاً للمادة 41 من القانون رقم 6 لسنة 2010 إجازة سنوية مدفوعة الأجر مدتها ثلاثون يوماً. "
-    "ولا يجوز لصاحب العمل إنهاء عقد العمل غير محدد المدة إلا بعد إخطار العامل قبل ثلاثة أشهر."
+    "ولا يجوز لصاحب العمل إنهاء عقد العمل غير محدد المدة إلا بعد إخطار العامل قبل ثلاثة أشهر. "
+    "وقد عُيّن الموكل في عام 2015."
 )
 
 
@@ -189,3 +190,15 @@ async def test_source_chunk_endpoint_respects_acl(world, pg) -> None:
         "username": "outsider", "password": "pass-1234", "role": "user", "collection_ids": [2]})
     r = await world.get(f"/api/v1/sources/chunks/{cid}", headers=await login(world, "outsider", "pass-1234"))
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_garbled_opinion_fails_fast_without_calling_claude(world) -> None:
+    from workers.tasks import run_review
+
+    user = await login(world, "lawyer", "lawyer-pass")
+    rid = await submit(world, user, opinion_text="??? ???????? ?? ?????? ???? 6 ?? ??????? ??? 6 ???? 2010.")
+    await run_review({}, rid)
+    body = (await world.get(f"/api/v1/reviews/{rid}", headers=user)).json()
+    assert body["status"] == "failed" and "بالعربية" in body["error_ar"]
+    assert world.claude.calls == []

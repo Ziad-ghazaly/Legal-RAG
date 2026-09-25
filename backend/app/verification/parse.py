@@ -2,9 +2,10 @@
 
 import io
 
-from app.text.arabic import fix_lam_alef
+from app.text.arabic import arabic_ratio, fix_lam_alef
 
 MIN_TEXT_CHARS = 20
+MIN_ARABIC_RATIO = 0.5
 
 
 class ParseError(ValueError):
@@ -37,4 +38,14 @@ def extract_text(filename: str, data: bytes) -> str:
     text = text.strip()
     if len(text) < MIN_TEXT_CHARS:
         raise ParseError("الملف لا يحتوي على نص كافٍ للتحقق.")
+    return text
+
+
+def ensure_opinion_text(text: str) -> str:
+    """Reject empty or non-Arabic/garbled text before any LLM call (hallucination guard)."""
+    text = (text or "").strip()
+    if len(text) < MIN_TEXT_CHARS:
+        raise ParseError("النص قصير جداً للتحقق.")
+    if arabic_ratio(text) < MIN_ARABIC_RATIO:
+        raise ParseError("النص لا يبدو رأياً قانونياً مكتوباً بالعربية؛ تحقق من ترميز الملف أو النص.")
     return text

@@ -89,3 +89,13 @@ def normalize_for_search_with_offsets(text: str) -> tuple[str, list[int]]:
         out.pop()
         offsets.pop()
     return "".join(out), offsets
+
+
+_ARABIC_LETTER = re.compile(r"[ء-ي]")
+_NON_LETTER = re.compile(r"[\s0-9٠-٩\W_ً-ٟـ]")
+
+
+def arabic_ratio(text: str) -> float:
+    """Share of Arabic letters among letters (digits, punctuation, spaces excluded)."""
+    letters = len(_NON_LETTER.sub("", text))
+    return len(_ARABIC_LETTER.findall(text)) / letters if letters else 0.0

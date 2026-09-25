@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 from app.core.legal import DOC_TYPE_AR
 from app.ingestion.contract import DocumentIn, UnitIn
-from app.text.arabic import normalize_for_search
+from app.text.arabic import arabic_ratio, normalize_for_search
 
 CountTokens = Callable[[list[str]], Awaitable[list[int]]]
 
@@ -35,8 +35,6 @@ _CLAUSE_MARKER = re.compile(
     r"|البند|الفقرة|\(\d+\)|\d+\s*[-–)]|\([أ-ي]\)|[أ-ي]\s*-\s))"
 )
 _SENTENCE_END = re.compile(r"(?<=[.؟!؛])\s+|\n+")
-_ARABIC_LETTER = re.compile(r"[ء-ي]")
-_NON_LETTER = re.compile(r"[\s0-9٠-٩\W_ً-ٟـ]")
 
 
 @dataclass(frozen=True)
@@ -61,11 +59,6 @@ def strip_boilerplate(text: str) -> str:
     lines = [ln.strip() for ln in text.splitlines()]
     kept = [ln for ln in lines if ln and not any(p.search(ln) for p in _BOILERPLATE_LINE)]
     return "\n".join(kept).strip()
-
-
-def arabic_ratio(text: str) -> float:
-    letters = len(_NON_LETTER.sub("", text))
-    return len(_ARABIC_LETTER.findall(text)) / letters if letters else 0.0
 
 
 def _split_clauses(text: str) -> list[str]:

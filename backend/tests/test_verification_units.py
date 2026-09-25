@@ -70,11 +70,12 @@ async def test_extract_claims_assigns_ids_dedupes_and_caps() -> None:
         _claim("يستحق العاملُ إجازة ثلاثين يوماً"),  # same after normalization (tashkeel)
         _claim("تم تعيين العامل في 2020", "factual_premise", "supporting"),
     ]})
-    claims, truncated = await extract_claims(llm, "نص الرأي", question="سؤال")
+    opinion = "نص الرأي: يستحق العامل إجازة ثلاثين يوماً، وقد تم تعيين العامل في 2020."
+    claims, truncated = await extract_claims(llm, opinion, question="سؤال")
     assert [c.id for c in claims] == ["C1", "C2"]
     assert claims[0].cited_refs[0]["article"] == 70 and claims[1].type == "factual_premise"
     assert not truncated
-    assert "سؤال" in llm.calls[0]["user"] and "نص الرأي" in llm.calls[0]["user"]
+    assert "سؤال" in llm.calls[0]["user"] and opinion in llm.calls[0]["user"]
 
 
 @pytest.mark.asyncio
@@ -83,7 +84,7 @@ async def test_extract_claims_caps_at_max(monkeypatch) -> None:
 
     monkeypatch.setattr(extract, "MAX_CLAIMS", 2)
     llm = FakeLLM({"claims": [_claim(f"ادعاء رقم {i}") for i in range(5)]})
-    claims, truncated = await extract_claims(llm, "نص", question=None)
+    claims, truncated = await extract_claims(llm, "ادعاء رقم " * 5, question=None)
     assert len(claims) == 2 and truncated
 
 
@@ -194,3 +195,28 @@ def test_higher_authority_contradiction_blocks_lower_does_not() -> None:
     r2 = result("C2", "supported", ev=[(law, "supports"), (const, "contradicts")])
     out = score_review([r2], p, date(2026, 1, 1))
     assert out.status == "needs_review" and r2.evidence[1].blocking is True
+
+
+# ── hallucination guards (found by the live smoke test) ─────────────────────
+
+
+def test_non_arabic_or_garbled_opinion_is_rejected_before_any_llm_call() -> None:
+    from app.verification.parse import ensure_opinion_text
+
+    with pytest.raises(ParseError) as e:
+        ensure_opinion_text("??? ???????? ?? ?????? ???? 6 ?? ??????? ??? 6 ???? 2010. ??? ????")
+    assert "عربي" in e.value.message_ar
+    assert ensure_opinion_text("  يستحق العامل إجازة سنوية مدفوعة الأجر وفق القانون.  ") == (
+        "يستحق العامل إجازة سنوية مدفوعة الأجر وفق القانون."
+    )
+
+
+@pytest.mark.asyncio
+async def test_claims_not_grounded_in_the_opinion_are_dropped() -> None:
+    opinion = "يستحق العامل إجازة سنوية مدفوعة الأجر مدتها ثلاثون يوماً وفق قانون العمل."
+    llm = FakeLLM({"claims": [
+        _claim("يستحق العامل إجازة سنوية مدفوعة الأجر ثلاثين يوماً"),
+        _claim("يحق للمستأجر التأجير من الباطن بموافقة المؤجر الخطية"),  # invented
+    ]})
+    claims, _ = await extract_claims(llm, opinion, question=None)
+    assert [c.text_ar for c in claims] == ["يستحق العامل إجازة سنوية مدفوعة الأجر ثلاثين يوماً"]

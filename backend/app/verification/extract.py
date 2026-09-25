@@ -7,6 +7,7 @@ from app.verification import prompts
 from app.verification.types import ClaimIn
 
 MAX_CLAIMS = 40
+MIN_GROUNDING = 0.5  # share of a claim's words that must appear in the opinion
 SECTION_CHARS = 120_000  # ≈ 60k tokens of Arabic
 
 
@@ -21,6 +22,17 @@ class LLM(Protocol):
         prompt_version: str,
         max_tokens: int = ...,
     ) -> dict[str, Any]: ...
+
+
+def _words(text: str) -> set[str]:
+    return {w for w in normalize_for_search(text).split() if len(w) >= 3}
+
+
+def _grounded(claim_norm: str, source: set[str]) -> bool:
+    """Deterministic guard: an extracted claim must reuse the opinion's own words.
+    ponytail: exact-word overlap; add light Arabic stemming if paraphrased claims get dropped."""
+    words = {w for w in claim_norm.split() if len(w) >= 3}
+    return bool(words) and len(words & source) / len(words) >= MIN_GROUNDING
 
 
 def _sections(text: str) -> list[str]:
@@ -51,11 +63,12 @@ async def extract_claims(
         )
         raw.extend(out.get("claims", []))
 
+    source = _words(opinion + " " + (question or ""))
     seen: set[str] = set()
     claims: list[ClaimIn] = []
     for c in raw:
         key = normalize_for_search(c.get("text_ar", ""))
-        if not key or key in seen:
+        if not key or key in seen or not _grounded(key, source):
             continue
         seen.add(key)
         claims.append(
