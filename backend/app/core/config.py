@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     s3_bucket_debug: str = "v3-ingestion-debug"
     tei_embed_url: str = "http://v3_tei_embed:80"
     tei_rerank_url: str = "http://v3_tei_rerank:80"
+    # CPU dev: ~1.6 s per 512-token pair; GPU prod: tens of ms.
+    tei_rerank_timeout_s: float = 120.0
 
     # --- rule 1 invariant ---
     embedding_model: str = "BAAI/bge-m3"

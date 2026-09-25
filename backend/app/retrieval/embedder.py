@@ -92,12 +92,12 @@ def _check_dims(data: Any, expected_dim: int) -> list[list[float]]:
     return data
 
 
-async def post_tei(url: str, payload: dict[str, Any]) -> Any:
+async def post_tei(url: str, payload: dict[str, Any], timeout: float | None = None) -> Any:
     """POST to TEI with 3 attempts and exponential backoff. No fallback."""
     last_exc: Exception | None = None
     for attempt in range(_RETRIES):
         try:
-            async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
+            async with httpx.AsyncClient(timeout=timeout or _TIMEOUT_S) as client:
                 r = await client.post(url, json=payload)
             if r.status_code != 200:
                 raise EmbedderError(f"TEI {url} returned {r.status_code}: {r.text[:200]}")
