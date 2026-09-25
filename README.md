@@ -24,7 +24,7 @@ Ports on host:
 
 - [x] **P0 Foundation** — docker stack, auth, Rule 1 guard, health, Swagger. Full stack verified in Docker (API via PgBouncer, worker, MinIO, TEI).
 - [x] **P1 Ingestion + retrieval** — JSONL contract, legal-aware chunker, idempotent indexer, ingestion jobs (API → MinIO → arq worker), hybrid retrieval (pgvector + pg_search BM25 → RRF → rerank → authority → pinning), `/api/retrieval/search`. Rules 1 + 2 pass on a real dev corpus. **Gate pending:** rule 3 needs the client's reviewer-validated gold set (≥200 queries) and GPU TEI for the latency gate.
-- [ ] P2 Verification
+- [x] **P2 Verification** — `POST /api/v1/reviews` (text or PDF/DOCX/TXT) → arq `run_review`: Claude claim extraction → per-claim full-mode retrieval with pinned citations → batched Claude verification → deterministic quote/passage validation, repealed guard, scoring, blocking contradictions, status → summary + suggested opinion (`needs_review`) → similar opinions. SSE progress at `/reviews/{id}/events`, source viewer `/sources/chunks/{id}`. **Gate pending:** verification gold set (≥60 opinions) to calibrate `ACCEPT_THRESHOLD`; OCR for scanned PDFs not built.
 - [ ] P3 Frontend
 - [ ] P4 Review workflow
 - [ ] P5 Hardening
