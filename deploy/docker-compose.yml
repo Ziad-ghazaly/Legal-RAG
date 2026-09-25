@@ -139,6 +139,16 @@ services:
       v3_redis: {condition: service_healthy}
     networks: [v3_net]
 
+  v3_frontend:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+    container_name: v3_frontend
+    depends_on:
+      v3_api: {condition: service_started}
+    ports: ["8300:80"]
+    networks: [v3_net]
+
   v3_prometheus:
     image: prom/prometheus:latest
     container_name: v3_prometheus
