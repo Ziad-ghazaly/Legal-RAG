@@ -1,6 +1,6 @@
 services:
   v3_postgres:
-    image: paradedb/paradedb:latest
+    image: paradedb/paradedb:0.25.10-pg16
     container_name: v3_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-legalrag}
@@ -43,7 +43,8 @@ services:
     networks: [v3_net]
 
   v3_minio:
-    image: minio/minio:latest
+    # minio/minio was removed from Docker Hub (2026-09); pgsty/minio is the drop-in community fork.
+    image: pgsty/minio:RELEASE.2026-03-14T12-00-00Z
     container_name: v3_minio
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
@@ -59,9 +60,9 @@ services:
     networks: [v3_net]
 
   v3_tei_embed:
-    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
     container_name: v3_tei_embed
-    command: ["--model-id", "BAAI/bge-m3"]
+    command: ["--model-id", "BAAI/bge-m3", "--max-batch-tokens", "2048"]
     volumes: [v3_tei_cache:/data]
     ports: ["8180:80"]
     environment:
@@ -74,9 +75,9 @@ services:
     networks: [v3_net]
 
   v3_tei_rerank:
-    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
     container_name: v3_tei_rerank
-    command: ["--model-id", "BAAI/bge-reranker-v2-m3"]
+    command: ["--model-id", "BAAI/bge-reranker-v2-m3", "--max-batch-tokens", "2048"]
     volumes: [v3_tei_cache:/data]
     ports: ["8181:80"]
     environment:
@@ -106,7 +107,7 @@ services:
     depends_on:
       v3_pgbouncer: {condition: service_started}
       v3_redis: {condition: service_healthy}
-      v3_minio: {condition: service_healthy}
+      v3_minio: {condition: service_started}
       v3_tei_embed: {condition: service_healthy}
       v3_tei_rerank: {condition: service_healthy}
     ports: ["8100:8000"]

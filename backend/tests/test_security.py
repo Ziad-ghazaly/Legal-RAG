@@ -6,9 +6,9 @@ import time
 os.environ.setdefault("SECRET_KEY", "x" * 32)
 os.environ.setdefault("ADMIN_PASSWORD", "y")
 
-import pytest  # noqa: E402
+import pytest
 
-from app.core.security import (  # noqa: E402
+from app.core.security import (
     ExpiredTokenError,
     InvalidTokenError,
     create_access_token,
@@ -18,7 +18,6 @@ from app.core.security import (  # noqa: E402
     new_refresh_token,
     verify_password,
 )
-
 
 # --- passwords -----------------------------------------------------------
 

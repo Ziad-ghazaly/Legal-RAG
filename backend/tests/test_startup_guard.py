@@ -5,15 +5,15 @@ import os
 os.environ.setdefault("SECRET_KEY", "x" * 32)
 os.environ.setdefault("ADMIN_PASSWORD", "y")
 
-import pytest  # noqa: E402
-from sqlalchemy import text  # noqa: E402
-from sqlalchemy.ext.asyncio import (  # noqa: E402
+import pytest
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
 
-from app.core.startup_guard import Rule1Violation, enforce_rule_one  # noqa: E402
+from app.core.startup_guard import Rule1Violation, enforce_rule_one
 
 
 @pytest.fixture

@@ -6,19 +6,24 @@ import os
 os.environ.setdefault("SECRET_KEY", "x" * 32)
 os.environ.setdefault("ADMIN_PASSWORD", "admin-pass")
 
-import httpx  # noqa: E402
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import text  # noqa: E402
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine  # noqa: E402
+import httpx
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
-from app.db.base import Base  # noqa: E402
+from app.db.base import Base
 
 
 @pytest.fixture(autouse=True)
 def _swap_engine(monkeypatch):
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-    from app.db import models, session as sess_module
+    from app.db import models
+    from app.db import session as sess_module
 
     factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     monkeypatch.setattr(sess_module, "async_engine", engine)

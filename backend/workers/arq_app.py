@@ -1,5 +1,7 @@
 """arq worker settings — boots the Rule 1 guard, then waits for tasks (none in P0)."""
 
+from typing import ClassVar
+
 from arq.connections import RedisSettings
 
 from app.core.config import get_settings
@@ -32,7 +34,7 @@ def _redis_settings() -> RedisSettings:
 
 
 class WorkerSettings:
-    functions: list = []  # P1 adds ingestion + review tasks
+    functions: ClassVar[list] = []  # P1 adds ingestion + review tasks
     on_startup = _startup
     on_shutdown = _shutdown
 

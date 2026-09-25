@@ -7,7 +7,7 @@ from app.core.config import get_settings
 from app.text.arabic import NORMALIZER_VERSION
 
 
-class Rule1Violation(RuntimeError):
+class Rule1Violation(RuntimeError):  # noqa: N818 — canonical name used in docs + logs
     """Raised when the embedding invariant is violated at startup."""
 
 
