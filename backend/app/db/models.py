@@ -25,9 +25,10 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import func
 from sqlalchemy.types import DateTime
 
 from app.db.base import Base, TimestampMixin
@@ -96,7 +97,7 @@ class RefreshToken(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
 
@@ -228,7 +229,7 @@ class Review(Base, TimestampMixin):
         String(32), nullable=False, default="processing", index=True
     )
     score: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    config_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    config_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
 
 class Claim(Base):
@@ -246,7 +247,7 @@ class Claim(Base):
     text_ar: Mapped[str] = mapped_column(Text, nullable=False)
     type: Mapped[str] = mapped_column(String(32), nullable=False)
     materiality: Mapped[str] = mapped_column(String(32), nullable=False, default="supporting")
-    cited_refs: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
+    cited_refs: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     verdict: Mapped[str | None] = mapped_column(String(32), nullable=True)
     weight: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     reasoning_ar: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -289,10 +290,10 @@ class ReviewVersion(Base):
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     kind: Mapped[str] = mapped_column(String(32), nullable=False)
-    content: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    content: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     author_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
 
@@ -313,7 +314,7 @@ class Approval(Base):
     approver_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
 
@@ -337,7 +338,7 @@ class LLMCall(Base):
     latency_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     request_id: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
 
@@ -349,9 +350,9 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(64), nullable=False)
     target_type: Mapped[str] = mapped_column(String(64), nullable=False)
     target_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
 
@@ -367,9 +368,9 @@ class IngestionJob(Base):
     doc_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     submitted_by: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
-    stats: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    stats: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
 
@@ -380,8 +381,8 @@ class EvalRun(Base):
         PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     kind: Mapped[str] = mapped_column(String(32), nullable=False)
-    metrics: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    config_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    config_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
