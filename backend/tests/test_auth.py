@@ -82,7 +82,7 @@ def test_login_fails_on_wrong_password():
 
 def test_login_succeeds_after_seed():
     with _client() as c:
-        r = c.post("/api/v1/auth/login", data={"username": "admin", "password": "admin-pass"})
+        r = c.post("/api/v1/auth/login", data={"username": "admin", "password": os.environ["ADMIN_PASSWORD"]})
         assert r.status_code == 200
         body = r.json()
         assert body["role"] == "admin"
@@ -99,7 +99,7 @@ def test_me_requires_auth():
 def test_me_returns_admin():
     with _client() as c:
         tok = c.post(
-            "/api/v1/auth/login", data={"username": "admin", "password": "admin-pass"}
+            "/api/v1/auth/login", data={"username": "admin", "password": os.environ["ADMIN_PASSWORD"]}
         ).json()
         r = c.get(
             "/api/v1/auth/me", headers={"Authorization": f"Bearer {tok['access_token']}"}
@@ -111,7 +111,7 @@ def test_me_returns_admin():
 def test_refresh_rotates():
     with _client() as c:
         pair = c.post(
-            "/api/v1/auth/login", data={"username": "admin", "password": "admin-pass"}
+            "/api/v1/auth/login", data={"username": "admin", "password": os.environ["ADMIN_PASSWORD"]}
         ).json()
         r = c.post("/api/v1/auth/refresh", json={"refresh_token": pair["refresh_token"]})
         assert r.status_code == 200
@@ -124,7 +124,7 @@ def test_refresh_rotates():
 def test_logout_revokes():
     with _client() as c:
         pair = c.post(
-            "/api/v1/auth/login", data={"username": "admin", "password": "admin-pass"}
+            "/api/v1/auth/login", data={"username": "admin", "password": os.environ["ADMIN_PASSWORD"]}
         ).json()
         c.post("/api/v1/auth/logout", json={"refresh_token": pair["refresh_token"]})
         r = c.post("/api/v1/auth/refresh", json={"refresh_token": pair["refresh_token"]})
@@ -134,7 +134,7 @@ def test_logout_revokes():
 def test_tampered_access_token_rejected():
     with _client() as c:
         pair = c.post(
-            "/api/v1/auth/login", data={"username": "admin", "password": "admin-pass"}
+            "/api/v1/auth/login", data={"username": "admin", "password": os.environ["ADMIN_PASSWORD"]}
         ).json()
         bad = pair["access_token"][:-4] + "AAAA"
         r = c.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {bad}"})
