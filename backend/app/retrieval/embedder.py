@@ -55,32 +55,46 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
     return out
 
 
-async def _embed_one_batch(
-    base_url: str, batch: list[str], expected_dim: int
-) -> list[list[float]]:
+async def _post_with_retries(url: str, payload: dict[str, Any]) -> Any:
+    """POST to TEI with 3 attempts and exponential backoff. No fallback."""
     last_exc: Exception | None = None
     for attempt in range(_RETRIES):
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
-                r = await client.post(f"{base_url}/embed", json={"inputs": batch})
+                r = await client.post(url, json=payload)
             if r.status_code != 200:
-                raise EmbedderError(
-                    f"TEI /embed returned {r.status_code}: {r.text[:200]}"
-                )
-            data = r.json()
-            if not isinstance(data, list) or not data:
-                raise EmbedderError("TEI /embed returned empty body")
-            for v in data:
-                if not isinstance(v, list) or len(v) != expected_dim:
-                    raise EmbedderError(
-                        f"TEI /embed returned wrong dim: expected {expected_dim}, "
-                        f"got {len(v) if isinstance(v, list) else type(v)}"
-                    )
-            return data
+                raise EmbedderError(f"TEI {url} returned {r.status_code}: {r.text[:200]}")
+            return r.json()
         except EmbedderError:
             raise
         except Exception as e:
             last_exc = e
             if attempt < _RETRIES - 1:
                 await asyncio.sleep(_BACKOFF_S[attempt])
-    raise EmbedderError(f"TEI /embed unreachable after {_RETRIES} attempts: {last_exc!r}")
+    raise EmbedderError(f"TEI {url} unreachable after {_RETRIES} attempts: {last_exc!r}")
+
+
+async def _embed_one_batch(
+    base_url: str, batch: list[str], expected_dim: int
+) -> list[list[float]]:
+    data = await _post_with_retries(f"{base_url}/embed", {"inputs": batch})
+    if not isinstance(data, list) or not data:
+        raise EmbedderError("TEI /embed returned empty body")
+    for v in data:
+        if not isinstance(v, list) or len(v) != expected_dim:
+            raise EmbedderError(
+                f"TEI /embed returned wrong dim: expected {expected_dim}, "
+                f"got {len(v) if isinstance(v, list) else type(v)}"
+            )
+    return data
+
+
+async def count_tokens(texts: list[str]) -> list[int]:
+    """Token counts from the embedding model's own tokenizer (TEI /tokenize)."""
+    settings = get_settings()
+    out: list[int] = []
+    for start in range(0, len(texts), _BATCH):
+        batch = texts[start : start + _BATCH]
+        data = await _post_with_retries(f"{settings.tei_embed_url}/tokenize", {"inputs": batch})
+        out.extend(len(tokens) for tokens in data)
+    return out

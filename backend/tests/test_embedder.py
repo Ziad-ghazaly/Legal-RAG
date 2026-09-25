@@ -5,10 +5,10 @@ import os
 os.environ.setdefault("SECRET_KEY", "x" * 32)
 os.environ.setdefault("ADMIN_PASSWORD", "y")
 
-import httpx  # noqa: E402
-import pytest  # noqa: E402
+import httpx
+import pytest
 
-from app.retrieval.embedder import (  # noqa: E402
+from app.retrieval.embedder import (
     EmbedderError,
     build_passage_input,
     build_query_input,
@@ -78,3 +78,19 @@ async def test_embed_texts_retries_and_fails(monkeypatch):
     with pytest.raises(EmbedderError):
         await embed_texts(["x"])
     assert calls["n"] == 3
+
+
+async def test_count_tokens_counts_tei_tokenize_output_in_batches(monkeypatch):
+    from app.retrieval.embedder import count_tokens
+
+    calls = []
+
+    async def fake_post(self, url, json, **kwargs):
+        calls.append(len(json["inputs"]))
+        body = [[{"id": i} for i in range(len(t.split()) + 2)] for t in json["inputs"]]
+        return httpx.Response(200, json=body, request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    counts = await count_tokens(["a b c"] * 40 + ["x"])
+    assert counts == [5] * 40 + [3]
+    assert calls == [32, 9]
