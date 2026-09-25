@@ -108,6 +108,8 @@ async def test_review_end_to_end_accepted(world) -> None:
 
     listed = (await world.get("/api/v1/reviews", headers=user)).json()
     assert [x["id"] for x in listed["items"]] == [rid]
+    assert (await world.get("/api/v1/reviews?status=accepted", headers=user)).json()["total"] == 1
+    assert (await world.get("/api/v1/reviews?status=failed", headers=user)).json()["total"] == 0
 
 
 @pytest.mark.asyncio

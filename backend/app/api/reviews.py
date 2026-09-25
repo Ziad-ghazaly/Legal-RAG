@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, date, datetime, time
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
@@ -115,7 +115,7 @@ async def create_review(
 async def list_reviews(
     user: CurrentUser,
     session: Session,
-    status_filter: Annotated[str | None, Form(alias="status")] = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
     limit: int = 20,
     offset: int = 0,
 ) -> ReviewPage:
