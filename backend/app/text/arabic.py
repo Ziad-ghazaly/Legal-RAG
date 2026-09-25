@@ -60,3 +60,32 @@ def normalize_for_embedding(text: str) -> str:
     t = _pre(text)
     t = _WHITESPACE_RE.sub(" ", t).strip()
     return t
+
+
+def fix_lam_alef(text: str) -> str:
+    """PyMuPDF swaps lam and hamza-alef in some fonts: األ → الأ (never valid Arabic)."""
+    return text.replace("األ", "الأ").replace("اإل", "الإ").replace("اآل", "الآ")
+
+
+IGNORABLE_CHARS = frozenset(_TASHKEEL + _TATWEEL + _ZERO_WIDTH)
+
+
+def normalize_for_search_with_offsets(text: str) -> tuple[str, list[int]]:
+    """normalize_for_search(text) plus, for each output char, its index in NFC(text)."""
+    src = unicodedata.normalize("NFC", text or "")
+    out: list[str] = []
+    offsets: list[int] = []
+    for i, ch in enumerate(src):
+        if ch in IGNORABLE_CHARS:
+            continue
+        if ch.isspace():
+            if out and out[-1] != " ":
+                out.append(" ")
+                offsets.append(i)
+            continue
+        out.append(ch.translate(_DIGITS).translate(_LETTER_UNIFY))
+        offsets.append(i)
+    if out and out[-1] == " ":
+        out.pop()
+        offsets.pop()
+    return "".join(out), offsets

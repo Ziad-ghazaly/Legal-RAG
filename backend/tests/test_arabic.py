@@ -62,3 +62,14 @@ def test_empty_and_whitespace():
     assert normalize_for_search("") == ""
     assert normalize_for_embedding("") == ""
     assert normalize_for_search("   \n\t  ") == ""
+
+
+def test_search_normalization_offsets_map_back_to_the_source() -> None:
+    from app.text.arabic import normalize_for_search, normalize_for_search_with_offsets
+
+    src = "  المادةُ   (٤١):  إجازةٌ مدفوعة الأجـــر‏ يوماً"
+    norm, offsets = normalize_for_search_with_offsets(src)
+    assert norm == normalize_for_search(src)
+    assert len(offsets) == len(norm)
+    i = norm.index("اجازه")
+    assert src[offsets[i]] == "إ"

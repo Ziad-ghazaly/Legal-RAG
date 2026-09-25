@@ -15,6 +15,8 @@ import re
 import sys
 from pathlib import Path
 
+from app.text.arabic import fix_lam_alef
+
 _ORDINALS = {
     "الأولى": 1, "الثانية": 2, "الثالثة": 3, "الرابعة": 4, "الخامسة": 5, "السادسة": 6,
     "السابعة": 7, "الثامنة": 8, "التاسعة": 9, "العاشرة": 10, "الحادية عشرة": 11,
@@ -27,11 +29,6 @@ _ARTICLE = re.compile(
     + r"))"
 )
 _CHAPTER = re.compile(r"^\s*(?:الباب|الفصل|القسم)\s")
-
-
-def fix_lam_alef(text: str) -> str:
-    """PyMuPDF swaps lam and hamza-alef in some fonts: األ → الأ (never valid Arabic)."""
-    return text.replace("األ", "الأ").replace("اإل", "الإ").replace("اآل", "الآ")
 
 
 def split_articles(text: str) -> list[dict]:
