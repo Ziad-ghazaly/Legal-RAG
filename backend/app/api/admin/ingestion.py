@@ -32,9 +32,15 @@ class JobOut(BaseModel):
 
 
 def _out(j: IngestionJob) -> JobOut:
-    return JobOut(id=str(j.id), status=j.status, collection_id=j.collection_id,
-                  doc_count=j.doc_count, error_count=j.error_count, stats=j.stats,
-                  created_at=j.created_at)
+    return JobOut(
+        id=str(j.id),
+        status=j.status,
+        collection_id=j.collection_id,
+        doc_count=j.doc_count,
+        error_count=j.error_count,
+        stats=j.stats,
+        created_at=j.created_at,
+    )
 
 
 @router.post("/jobs", status_code=status.HTTP_202_ACCEPTED)
@@ -49,8 +55,14 @@ async def create_job(
     data = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "الملف أكبر من الحد المسموح.")
-    job = IngestionJob(id=uuid.uuid4(), status="pending", collection_id=collection_id,
-                       submitted_by=user.id, doc_count=0, error_count=0)
+    job = IngestionJob(
+        id=uuid.uuid4(),
+        status="pending",
+        collection_id=collection_id,
+        submitted_by=user.id,
+        doc_count=0,
+        error_count=0,
+    )
     job.file_key = f"ingestion/{job.id}.jsonl"
     await storage.put_bytes(job.file_key, data, "application/jsonl")
     session.add(job)

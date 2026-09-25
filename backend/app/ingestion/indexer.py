@@ -56,8 +56,14 @@ async def _index_one(
     kept: list[tuple[UnitIn, ChunkDraft]] = []
     for unit, c in drafts:
         if c.content_hash in taken:
-            dropped.append({"doc_id": doc.doc_id, "unit_id": unit.unit_id, "reason": "duplicate",
-                            "text": c.text[:120]})
+            dropped.append(
+                {
+                    "doc_id": doc.doc_id,
+                    "unit_id": unit.unit_id,
+                    "reason": "duplicate",
+                    "text": c.text[:120],
+                }
+            )
             continue
         taken.add(c.content_hash)
         kept.append((unit, c))

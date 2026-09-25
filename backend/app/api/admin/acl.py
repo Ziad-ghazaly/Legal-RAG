@@ -66,8 +66,13 @@ async def _set_collections(session: AsyncSession, user_id: uuid.UUID, ids: list[
 
 
 async def _out(session: AsyncSession, u: User) -> UserOut:
-    return UserOut(id=str(u.id), username=u.username, role=u.role, is_active=u.is_active,
-                   collection_ids=await user_collection_ids(session, u.id))
+    return UserOut(
+        id=str(u.id),
+        username=u.username,
+        role=u.role,
+        is_active=u.is_active,
+        collection_ids=await user_collection_ids(session, u.id),
+    )
 
 
 @router.post("/collections", status_code=201, response_model=CollectionOut)
@@ -88,8 +93,13 @@ async def list_collections(_: Admin, session: Session) -> list[Collection]:
 
 @router.post("/users", status_code=201, response_model=UserOut)
 async def create_user(body: UserIn, _: Admin, session: Session) -> UserOut:
-    u = User(id=uuid.uuid4(), username=body.username, hashed_password=hash_password(body.password),
-             role=body.role, is_active=True)
+    u = User(
+        id=uuid.uuid4(),
+        username=body.username,
+        hashed_password=hash_password(body.password),
+        role=body.role,
+        is_active=True,
+    )
     session.add(u)
     try:
         await session.flush()

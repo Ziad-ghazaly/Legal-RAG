@@ -11,7 +11,9 @@ async def rerank(query: str, texts: list[str]) -> list[float]:
     scores: list[float] = []
     for start in range(0, len(texts), _BATCH):
         batch = texts[start : start + _BATCH]
-        data = await post_tei(url, {"query": query, "texts": batch, "raw_scores": True, "truncate": True})
+        data = await post_tei(
+            url, {"query": query, "texts": batch, "raw_scores": True, "truncate": True}
+        )
         part = [0.0] * len(batch)
         for item in data:
             part[item["index"]] = float(item["score"])

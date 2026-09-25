@@ -88,7 +88,9 @@ def final_score(p: float, authority: float) -> float:
     return p * (0.85 + 0.15 * authority)
 
 
-def rrf(lists: list[list[str]], k: int = RRF_K, weights: list[float] | None = None) -> dict[str, float]:
+def rrf(
+    lists: list[list[str]], k: int = RRF_K, weights: list[float] | None = None
+) -> dict[str, float]:
     weights = weights or [1.0] * len(lists)
     fused: dict[str, float] = {}
     for w, ranked in zip(weights, lists, strict=True):
@@ -97,7 +99,9 @@ def rrf(lists: list[list[str]], k: int = RRF_K, weights: list[float] | None = No
     return fused
 
 
-def effective_collections(requested: list[int] | None, allowed: list[int] | None) -> list[int] | None:
+def effective_collections(
+    requested: list[int] | None, allowed: list[int] | None
+) -> list[int] | None:
     """None = unrestricted (admin, nothing requested). Always ⊆ allowed when allowed is set."""
     if allowed is None:
         return requested
@@ -125,7 +129,9 @@ def _filters(params: SearchParams, collections: list[int] | None) -> tuple[str, 
     return " AND ".join(clauses), binds
 
 
-async def _vector(session: AsyncSession, query: str, where: str, binds: dict) -> list[tuple[str, float]]:
+async def _vector(
+    session: AsyncSession, query: str, where: str, binds: dict
+) -> list[tuple[str, float]]:
     (vec,) = await embedder.embed_texts([embedder.build_query_input(query)])
     qv = "[" + ",".join(f"{x:.7f}" for x in vec) + "]"
     await session.execute(text(f"SET LOCAL hnsw.ef_search = {HNSW_EF_SEARCH}"))
@@ -140,7 +146,9 @@ async def _vector(session: AsyncSession, query: str, where: str, binds: dict) ->
     return [(r[0], float(r[1])) for r in rows]
 
 
-async def _bm25(session: AsyncSession, query: str, where: str, binds: dict) -> list[tuple[str, float]]:
+async def _bm25(
+    session: AsyncSession, query: str, where: str, binds: dict
+) -> list[tuple[str, float]]:
     q = normalize_for_search(query)
     if not q:
         return []
@@ -154,14 +162,17 @@ async def _bm25(session: AsyncSession, query: str, where: str, binds: dict) -> l
     return [(r[0], float(r[1])) for r in rows]
 
 
-async def _pinned(session: AsyncSession, cites: list[Citation], where: str, binds: dict) -> list[str]:
+async def _pinned(
+    session: AsyncSession, cites: list[Citation], where: str, binds: dict
+) -> list[str]:
     ids: list[str] = []
     for i, c in enumerate(x for x in cites if x.number and x.year):
         rows = await session.execute(
             text(
                 "SELECT c.id::text FROM chunks c JOIN units u ON u.id = c.unit_id "
                 "JOIN documents d ON d.id = c.document_id "
-                f"WHERE u.article_number = :a{i} AND d.number = :n{i} AND d.year = :y{i} AND {where}"
+                f"WHERE u.article_number = :a{i} AND d.number = :n{i} AND d.year = :y{i} "
+                f"AND {where}"
             ),
             {**binds, f"a{i}": c.article, f"n{i}": c.number, f"y{i}": c.year},
         )
@@ -177,16 +188,29 @@ async def _load(session: AsyncSession, ids: list[str]) -> dict[str, Hit]:
             "SELECT c.id::text, c.unit_id, c.document_id, c.collection_id, c.status, c.doc_type, "
             "c.authority_level, c.chunk_kind, c.context_header, c.text, u.article_number, "
             "u.article_label, d.title_ar, d.number, d.year "
-            "FROM chunks c JOIN units u ON u.id = c.unit_id JOIN documents d ON d.id = c.document_id "
+            "FROM chunks c JOIN units u ON u.id = c.unit_id "
+            "JOIN documents d ON d.id = c.document_id "
             "WHERE c.id = ANY(CAST(:ids AS uuid[]))"
         ),
         {"ids": ids},
     )
     return {
         r[0]: Hit(
-            chunk_id=r[0], unit_id=r[1], document_id=r[2], collection_id=r[3], status=r[4],
-            doc_type=r[5], authority=float(r[6]), chunk_kind=r[7], context_header=r[8], text=r[9],
-            article_number=r[10], article_label=r[11], title_ar=r[12], number=r[13], year=r[14],
+            chunk_id=r[0],
+            unit_id=r[1],
+            document_id=r[2],
+            collection_id=r[3],
+            status=r[4],
+            doc_type=r[5],
+            authority=float(r[6]),
+            chunk_kind=r[7],
+            context_header=r[8],
+            text=r[9],
+            article_number=r[10],
+            article_label=r[11],
+            title_ar=r[12],
+            number=r[13],
+            year=r[14],
         )
         for r in rows
     }
@@ -205,7 +229,9 @@ async def search(
 
     pinned: list[str] = []
     if params.mode == "full":
-        pinned = await _pinned(session, [*params.cited, *parse_citations(params.query)], where, binds)
+        pinned = await _pinned(
+            session, [*params.cited, *parse_citations(params.query)], where, binds
+        )
     if params.mode in ("hybrid_rerank", "full"):
         ranked = ranked[:FUSED_K]
     candidates = list(dict.fromkeys([*pinned, *ranked]))
@@ -221,7 +247,9 @@ async def search(
 
     if params.mode in ("hybrid_rerank", "full") and hits:
         order = list(hits)
-        logits = await rr.rerank(params.query, [f"{hits[c].context_header}\n{hits[c].text}" for c in order])
+        logits = await rr.rerank(
+            params.query, [f"{hits[c].context_header}\n{hits[c].text}" for c in order]
+        )
         for cid, logit in zip(order, logits, strict=True):
             h = hits[cid]
             h.rerank_logit, h.p = logit, sigmoid(logit)
