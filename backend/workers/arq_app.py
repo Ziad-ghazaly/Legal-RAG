@@ -29,16 +29,9 @@ async def _shutdown(ctx: dict) -> None:
     get_logger("worker").info("worker_shutdown")
 
 
-def _redis_settings() -> RedisSettings:
-    settings = get_settings()
-    return RedisSettings.from_dsn(settings.redis_url)
-
-
 class WorkerSettings:
     functions: ClassVar[list] = [run_ingestion_job]
     on_startup = _startup
     on_shutdown = _shutdown
-
-    @staticmethod
-    def redis_settings() -> RedisSettings:
-        return _redis_settings()
+    redis_settings = RedisSettings.from_dsn(get_settings().redis_url)  # arq reads an instance
+    job_timeout = 3600  # large JSONL corpora on CPU TEI
