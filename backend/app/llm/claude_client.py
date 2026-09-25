@@ -65,7 +65,9 @@ class ClaudeClient:
                 max_tokens=max_tokens,
                 temperature=0,
                 system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
-                tools=[{"name": tool_name, "description": "Record the result.", "input_schema": schema}],
+                tools=[
+                    {"name": tool_name, "description": "Record the result.", "input_schema": schema}
+                ],
                 tool_choice={"type": "tool", "name": tool_name},
                 messages=[{"role": "user", "content": user}],
             )
