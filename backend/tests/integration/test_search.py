@@ -120,3 +120,14 @@ async def test_hits_carry_intermediate_scores(corpus) -> None:
     assert top.vector_rank is not None and top.bm25_rank is not None and top.rrf > 0
     assert top.rerank_logit is not None and 0 < top.p <= 1
     assert res.latency_ms > 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["hybrid_rerank", "full"])
+async def test_candidates_beyond_fused_k_do_not_crash(corpus, monkeypatch, mode) -> None:
+    from app.retrieval import search as s
+
+    monkeypatch.setattr(s, "FUSED_K", 1)
+    q = SearchParams(query="إخطار العامل قبل إنهاء عقد العمل والإجازة السنوية للسفن", mode=mode)
+    res = await search(corpus, q, allowed_collections=[1])
+    assert len([h for h in res.hits if not h.pinned]) <= 1

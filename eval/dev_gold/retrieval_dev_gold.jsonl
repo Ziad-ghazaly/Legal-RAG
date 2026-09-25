@@ -1,0 +1,11 @@
+// DEV smoke gold set over the local dev corpus (kw-labor-summary). NOT the P1 gate:
+// the gate needs ≥200 reviewer-validated queries over the client's real corpus.
+{"id": "d001", "query_ar": "ما نص المادة 3 من المرسوم بقانون رقم 6 لسنة 2010؟", "relevant_unit_ids": ["kw-labor-summary/a3"], "as_of_date": "2026-09-01", "collections": [1], "category": "exact_citation"}
+{"id": "d002", "query_ar": "المادة ٦ من المرسوم بقانون رقم ٦ لسنة ٢٠١٠", "relevant_unit_ids": ["kw-labor-summary/a6"], "as_of_date": "2026-09-01", "collections": [1], "category": "exact_citation"}
+{"id": "d003", "query_ar": "كم مدة إجازة الأمومة للعاملة؟", "relevant_unit_ids": ["kw-labor-summary/a7"], "as_of_date": "2026-09-01", "collections": [1], "category": "paraphrase"}
+{"id": "d004", "query_ar": "ما هي المدة القصوى لفترة التجربة للعامل؟", "relevant_unit_ids": ["kw-labor-summary/a3"], "as_of_date": "2026-09-01", "collections": [1], "category": "paraphrase"}
+{"id": "d005", "query_ar": "متى يجوز لصاحب العمل فسخ العقد دون مكافأة نهاية الخدمة؟", "relevant_unit_ids": ["kw-labor-summary/a4"], "as_of_date": "2026-09-01", "collections": [1], "category": "paraphrase"}
+{"id": "d006", "query_ar": "كيف تحسب مكافأة نهاية الخدمة للعامل؟", "relevant_unit_ids": ["kw-labor-summary/a5"], "as_of_date": "2026-09-01", "collections": [1], "category": "paraphrase"}
+{"id": "d007", "query_ar": "من هو صاحب العمل في قانون العمل؟", "relevant_unit_ids": ["kw-labor-summary/a1"], "as_of_date": "2026-09-01", "collections": [1], "category": "definition"}
+{"id": "d008", "query_ar": "ما البيانات الإلزامية التي يجب أن يتضمنها عقد العمل؟", "relevant_unit_ids": ["kw-labor-summary/a2"], "as_of_date": "2026-09-01", "collections": [1], "category": "paraphrase"}
+{"id": "d009", "query_ar": "الاجازه السنويه مدفوعه الاجر", "relevant_unit_ids": ["kw-labor-summary/a6"], "as_of_date": "2026-09-01", "collections": [1], "category": "colloquial"}

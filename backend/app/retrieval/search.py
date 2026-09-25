@@ -237,10 +237,13 @@ async def search(
     candidates = list(dict.fromkeys([*pinned, *ranked]))
     hits = await _load(session, candidates)
 
+    # vec/bm may hold ids cut by FUSED_K; only loaded candidates are annotated.
     for rank, (cid, sim) in enumerate(vec, start=1):
-        hits[cid].vector_sim, hits[cid].vector_rank = sim, rank
+        if cid in hits:
+            hits[cid].vector_sim, hits[cid].vector_rank = sim, rank
     for rank, (cid, s) in enumerate(bm, start=1):
-        hits[cid].bm25_score, hits[cid].bm25_rank = s, rank
+        if cid in hits:
+            hits[cid].bm25_score, hits[cid].bm25_rank = s, rank
     for cid, h in hits.items():
         h.rrf = fused.get(cid, 0.0)
         h.pinned = cid in pinned
