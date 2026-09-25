@@ -62,9 +62,11 @@ async def _index_one(
         taken.add(c.content_hash)
         kept.append((unit, c))
 
-    vectors = await embed(
-        [embedder.build_passage_input({"context_header": c.context_header, "text": c.text}) for _, c in kept]
-    )
+    inputs = [
+        embedder.build_passage_input({"context_header": c.context_header, "text": c.text})
+        for _, c in kept
+    ]
+    vectors = await embed(inputs)
 
     authority = authority_for(doc.doc_type, doc.court_level)
     model = get_settings().embedding_model
@@ -144,7 +146,9 @@ async def index_documents(
     stats: dict = {"documents": 0, "units": 0, "chunks": 0, "dropped": [], "errors": []}
     for doc in docs:
         try:
-            units, chunks = await _index_one(session, doc, collection_id, count_tokens, embed, stats["dropped"])
+            units, chunks = await _index_one(
+                session, doc, collection_id, count_tokens, embed, stats["dropped"]
+            )
             await session.commit()
         except Exception as e:
             await session.rollback()

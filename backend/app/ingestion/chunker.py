@@ -141,14 +141,16 @@ async def chunk_unit(
             texts = [text]
         else:
             (head_n,) = await count_tokens([head])
-            packed = _pack(await _fit(rows, budget - head_n, count_tokens), budget - head_n, False, "\n")
+            room = budget - head_n
+            packed = _pack(await _fit(rows, room, count_tokens), room, False, "\n")
             texts = [f"{head}\n{p}" for p in packed]
     elif unit.unit_type in ("article", "clause"):
         if text_tokens <= budget:
             kind, texts = "article", [text]
         else:
             kind = "clause_split"
-            texts = _pack(await _fit(_split_clauses(text), budget, count_tokens), budget, False, "\n")
+            clauses = await _fit(_split_clauses(text), budget, count_tokens)
+            texts = _pack(clauses, budget, False, "\n")
     else:
         kind = "semantic"
         if text_tokens <= budget:

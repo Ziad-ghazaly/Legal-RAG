@@ -21,7 +21,7 @@ os.environ.setdefault("SECRET_KEY", "x" * 32)
 os.environ.setdefault("ADMIN_PASSWORD", "admin-pass")
 
 
-def pytest_collection_modifyitems(config, items):  # noqa: ARG001
+def pytest_collection_modifyitems(config, items):
     for item in items:
         if "integration" in str(item.fspath):
             item.add_marker(pytest.mark.integration)
@@ -52,7 +52,7 @@ def migrated_db() -> None:
 
 
 @pytest.fixture
-async def pg(migrated_db):  # noqa: ARG001
+async def pg(migrated_db):
     """Fresh session on a clean corpus for each test."""
     from sqlalchemy import text
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
