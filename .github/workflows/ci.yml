@@ -1,0 +1,50 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  SECRET_KEY: ci-secret-must-be-long-enough-32-bytes
+  ADMIN_PASSWORD: ci-admin-pass
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: legalrag
+  POSTGRES_USER: legalrag
+  POSTGRES_PASSWORD: legalrag
+  REDIS_URL: redis://localhost:6379/0
+  TEI_EMBED_URL: http://localhost:8080
+  TEI_RERANK_URL: http://localhost:8080
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: backend}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip, cache-dependency-path: backend/pyproject.toml}
+      - run: pip install ".[dev]"
+      - run: ruff check .
+      - run: pytest
+
+  integration:
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: backend}}
+    services:
+      postgres:
+        image: paradedb/paradedb:0.25.10-pg16
+        env: {POSTGRES_DB: legalrag, POSTGRES_USER: legalrag, POSTGRES_PASSWORD: legalrag}
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U legalrag -d legalrag"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip, cache-dependency-path: backend/pyproject.toml}
+      - run: pip install ".[dev]"
+      - name: Integration tests (real ParadeDB, fake TEI)
+        run: pytest tests/integration
+        env: {V3_INTEGRATION: "1"}
