@@ -1,0 +1,9 @@
+# Dev overrides: mount code for reload.
+services:
+  v3_api:
+    volumes: [../backend:/app]
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+  v3_worker:
+    volumes: [../backend:/app]

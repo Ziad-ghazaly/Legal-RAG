@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: v3_api
+    static_configs:
+      - targets: ["v3_api:8000"]
+    metrics_path: /metrics

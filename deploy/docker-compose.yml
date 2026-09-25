@@ -1,0 +1,161 @@
+services:
+  v3_postgres:
+    image: paradedb/paradedb:latest
+    container_name: v3_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-legalrag}
+      POSTGRES_USER: ${POSTGRES_USER:-legalrag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-legalrag}
+    volumes: [v3_postgres_data:/var/lib/postgresql/data]
+    ports: ["5532:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-legalrag} -d ${POSTGRES_DB:-legalrag}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [v3_net]
+
+  v3_pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: v3_pgbouncer
+    environment:
+      DB_HOST: v3_postgres
+      DB_USER: ${POSTGRES_USER:-legalrag}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-legalrag}
+      DB_NAME: ${POSTGRES_DB:-legalrag}
+      POOL_MODE: transaction
+    depends_on:
+      v3_postgres: {condition: service_healthy}
+    ports: ["6532:5432"]
+    networks: [v3_net]
+
+  v3_redis:
+    image: redis:7-alpine
+    container_name: v3_redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [v3_redis_data:/data]
+    ports: ["6479:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [v3_net]
+
+  v3_minio:
+    image: minio/minio:latest
+    container_name: v3_minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-legalrag}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-legalrag-secret}
+    volumes: [v3_minio_data:/data]
+    ports: ["9100:9000", "9101:9001"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [v3_net]
+
+  v3_tei_embed:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    container_name: v3_tei_embed
+    command: ["--model-id", "BAAI/bge-m3"]
+    volumes: [v3_tei_cache:/data]
+    ports: ["8180:80"]
+    environment:
+      HUGGING_FACE_HUB_CACHE: /data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    networks: [v3_net]
+
+  v3_tei_rerank:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    container_name: v3_tei_rerank
+    command: ["--model-id", "BAAI/bge-reranker-v2-m3"]
+    volumes: [v3_tei_cache:/data]
+    ports: ["8181:80"]
+    environment:
+      HUGGING_FACE_HUB_CACHE: /data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    networks: [v3_net]
+
+  v3_api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    container_name: v3_api
+    env_file: [../.env]
+    environment:
+      POSTGRES_HOST: v3_pgbouncer
+      REDIS_URL: redis://v3_redis:6379/0
+      S3_ENDPOINT_URL: http://v3_minio:9000
+      TEI_EMBED_URL: http://v3_tei_embed:80
+      TEI_RERANK_URL: http://v3_tei_rerank:80
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      v3_pgbouncer: {condition: service_started}
+      v3_redis: {condition: service_healthy}
+      v3_minio: {condition: service_healthy}
+      v3_tei_embed: {condition: service_healthy}
+      v3_tei_rerank: {condition: service_healthy}
+    ports: ["8100:8000"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [v3_net]
+
+  v3_worker:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    container_name: v3_worker
+    env_file: [../.env]
+    environment:
+      POSTGRES_HOST: v3_pgbouncer
+      REDIS_URL: redis://v3_redis:6379/0
+    command: ["arq", "workers.arq_app.WorkerSettings"]
+    depends_on:
+      v3_pgbouncer: {condition: service_started}
+      v3_redis: {condition: service_healthy}
+    networks: [v3_net]
+
+  v3_prometheus:
+    image: prom/prometheus:latest
+    container_name: v3_prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["9190:9090"]
+    networks: [v3_net]
+
+  v3_grafana:
+    image: grafana/grafana:latest
+    container_name: v3_grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    ports: ["3100:3000"]
+    volumes: [v3_grafana_data:/var/lib/grafana]
+    networks: [v3_net]
+
+volumes:
+  v3_postgres_data:
+  v3_redis_data:
+  v3_minio_data:
+  v3_tei_cache:
+  v3_grafana_data:
+
+networks:
+  v3_net:
+    driver: bridge
