@@ -42,7 +42,17 @@ async function detail(res: Response): Promise<string> {
   return "حدث خطأ غير متوقع.";
 }
 
-async function refresh(): Promise<boolean> {
+let inflight: Promise<boolean> | null = null;
+
+/** Single-flight: concurrent 401s share one refresh (the backend rotates refresh tokens). */
+function refresh(): Promise<boolean> {
+  inflight ??= doRefresh().finally(() => {
+    inflight = null;
+  });
+  return inflight;
+}
+
+async function doRefresh(): Promise<boolean> {
   const t = getTokens();
   if (!t) return false;
   const res = await fetch(`${BASE}/auth/refresh`, {
