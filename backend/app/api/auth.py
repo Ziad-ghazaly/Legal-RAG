@@ -1,6 +1,6 @@
 """/auth/{login,refresh,logout,me}."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -59,7 +59,7 @@ async def login(
         RefreshToken(
             user_id=user.id,
             token_hash=refresh_hash,
-            expires_at=datetime.now(timezone.utc) + timedelta(seconds=REFRESH_TOKEN_TTL_SECONDS),
+            expires_at=datetime.now(UTC) + timedelta(seconds=REFRESH_TOKEN_TTL_SECONDS),
         )
     )
     await session.commit()
@@ -79,8 +79,8 @@ async def refresh(
     # SQLite loses tzinfo on DateTime(timezone=True) — coerce to UTC-aware.
     expires_at = row.expires_at if row is not None else None
     if expires_at is not None and expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
-    if row is None or row.revoked or expires_at < datetime.now(timezone.utc):  # type: ignore[operator]
+        expires_at = expires_at.replace(tzinfo=UTC)
+    if row is None or row.revoked or expires_at < datetime.now(UTC):  # type: ignore[operator]
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "رمز التحديث غير صالح أو منتهي.")
 
     row.revoked = True
@@ -93,7 +93,7 @@ async def refresh(
         RefreshToken(
             user_id=user.id,
             token_hash=new_hash,
-            expires_at=datetime.now(timezone.utc) + timedelta(seconds=REFRESH_TOKEN_TTL_SECONDS),
+            expires_at=datetime.now(UTC) + timedelta(seconds=REFRESH_TOKEN_TTL_SECONDS),
         )
     )
     await session.commit()
