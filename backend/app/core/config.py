@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     secret_key: str = Field(...)
     admin_password: str = Field(..., min_length=1)
     anthropic_api_key: str = Field(default="")
+    claude_model: str = "claude-sonnet-4-5"  # brief §4; configurable via CLAUDE_MODEL
 
     # --- database ---
     postgres_host: str = "v3_pgbouncer"
