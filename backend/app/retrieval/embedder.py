@@ -55,7 +55,7 @@ async def embed_texts(texts: list[str]) -> list[list[float]]:
     return out
 
 
-async def _post_with_retries(url: str, payload: dict[str, Any]) -> Any:
+async def post_tei(url: str, payload: dict[str, Any]) -> Any:
     """POST to TEI with 3 attempts and exponential backoff. No fallback."""
     last_exc: Exception | None = None
     for attempt in range(_RETRIES):
@@ -77,7 +77,7 @@ async def _post_with_retries(url: str, payload: dict[str, Any]) -> Any:
 async def _embed_one_batch(
     base_url: str, batch: list[str], expected_dim: int
 ) -> list[list[float]]:
-    data = await _post_with_retries(f"{base_url}/embed", {"inputs": batch})
+    data = await post_tei(f"{base_url}/embed", {"inputs": batch})
     if not isinstance(data, list) or not data:
         raise EmbedderError("TEI /embed returned empty body")
     for v in data:
@@ -95,6 +95,6 @@ async def count_tokens(texts: list[str]) -> list[int]:
     out: list[int] = []
     for start in range(0, len(texts), _BATCH):
         batch = texts[start : start + _BATCH]
-        data = await _post_with_retries(f"{settings.tei_embed_url}/tokenize", {"inputs": batch})
+        data = await post_tei(f"{settings.tei_embed_url}/tokenize", {"inputs": batch})
         out.extend(len(tokens) for tokens in data)
     return out
