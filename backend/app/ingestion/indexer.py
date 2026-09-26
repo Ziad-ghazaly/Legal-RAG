@@ -25,6 +25,8 @@ Embed = Callable[[list[str]], Awaitable[list[list[float]]]]
 def _status(doc: DocumentIn, unit: UnitIn) -> str:
     if doc.status == "repealed":
         return "repealed"
+    if unit.status:
+        return unit.status
     return "amended" if unit.valid_to else doc.status
 
 
@@ -124,9 +126,12 @@ async def _index_one(
         )
     )
     await session.flush()
-    for unit in doc.units:
+    for position, unit in enumerate(doc.units):
         session.add(
             Unit(
+                status=_status(doc, unit),
+                notes=unit.notes or None,
+                position=position,
                 id=unit.unit_id,
                 document_id=doc.doc_id,
                 unit_type=unit.unit_type,

@@ -3,20 +3,22 @@
 Authority is a bounded tie-breaker inside relevance (see retrieval), never an override.
 """
 
+# Weights set by the product owner (2026-09-26). Law and decree-law share a rank
+# (Constitution art. 71: a decree-law has the force of law).
 AUTHORITY: dict[str, float] = {
-    "constitution": 1.00,
-    "law": 0.90,
-    "decree_law": 0.90,
-    "decree": 0.80,
-    "regulation": 0.70,
-    "ministerial_decision": 0.60,
-    "circular": 0.50,
-    "court_ruling": 0.60,  # non-cassation courts; cassation handled in authority_for
-    "legal_opinion": 0.50,
-    "fatwa": 0.50,
-    "commentary": 0.40,
+    "constitution": 0.99,
+    "law": 0.70,
+    "decree_law": 0.70,
+    "decree": 0.65,
+    "regulation": 0.60,
+    "ministerial_decision": 0.50,
+    "circular": 0.30,
+    "legal_opinion": 0.15,
+    "fatwa": 0.15,
+    "court_ruling": 0.10,  # non-cassation courts; cassation handled in authority_for
+    "commentary": 0.05,
 }
-CASSATION_AUTHORITY = 0.75
+CASSATION_AUTHORITY = 0.12
 
 DOC_TYPE_AR: dict[str, str] = {
     "constitution": "الدستور",

@@ -152,6 +152,9 @@ class Unit(Base):
     valid_from: Mapped[date | None] = mapped_column(Date, nullable=True)
     valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
     amended_by: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="in_force")
+    notes: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     __table_args__ = (
         Index("ix_units_doc_article_valid", "document_id", "article_number", "valid_from"),

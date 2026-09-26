@@ -43,12 +43,12 @@ async def test_index_writes_documents_units_chunks_with_metadata(pg) -> None:
     assert (stats["documents"], stats["units"], stats["chunks"]) == (1, 2, 2)
     assert await counts(pg) == (1, 2, 2)
     c = (await pg.execute(select(Chunk).where(Chunk.unit_id == "kw-law-6-2010/a41"))).scalar_one()
-    assert c.collection_id == 1 and c.doc_type == "law" and c.authority_level == 0.9
+    assert c.collection_id == 1 and c.doc_type == "law" and c.authority_level == 0.7
     assert c.embedding_model == "BAAI/bge-m3" and len(c.embedding) == 1024
     assert c.status == "in_force" and c.valid_from == date(2010, 2, 21)
     assert c.context_header.endswith("المادة 41") and c.chunk_kind == "article"
     doc = await pg.get(Document, "kw-law-6-2010")
-    assert doc.collection_id == 1 and doc.authority_level == 0.9
+    assert doc.collection_id == 1 and doc.authority_level == 0.7
 
 
 @pytest.mark.asyncio
@@ -115,3 +115,21 @@ async def test_duplicate_keeps_the_in_force_copy_over_a_repealed_one(pg) -> None
     stats = await index_documents(pg, [old], collection_id=1, count_tokens=fake_count, embed=fake_embed)
     assert set((await pg.execute(select(Chunk.unit_id))).scalars()) == {"new-law/a41"}
     assert stats["dropped"][0]["reason"] == "duplicate"
+
+
+@pytest.mark.asyncio
+async def test_unit_status_notes_and_order_are_persisted(pg) -> None:
+    units = [
+        {"unit_id": "c/a3", "level": "article", "article_number": 3, "text": A44},
+        {"unit_id": "c/a1", "level": "article", "article_number": 1, "text": A41,
+         "status": "suspended", "notes": ["تم وقف العمل بالمادة عملا بالامر الاميري المؤرخ 10 / 5 / 2024"]},
+        {"unit_id": "c/a2", "level": "article", "article_number": 2,
+         "text": "ملغاة — ملغاة بموجب القانون رقم 31 لسنة 1970 وحل محلها المواد من 1 إلى 34", "status": "repealed"},
+    ]
+    await index_documents(pg, [law(doc_id="c", units=units)], collection_id=1, count_tokens=fake_count, embed=fake_embed)
+    rows = (await pg.execute(select(Unit.id, Unit.status, Unit.notes, Unit.position).order_by(Unit.position))).all()
+    assert [r.id for r in rows] == ["c/a3", "c/a1", "c/a2"]
+    assert [r.status for r in rows] == ["in_force", "suspended", "repealed"]
+    assert rows[1].notes[0].startswith("تم وقف")
+    chunk_status = dict((await pg.execute(select(Chunk.unit_id, Chunk.status))).all())
+    assert chunk_status == {"c/a3": "in_force", "c/a1": "suspended", "c/a2": "repealed"}

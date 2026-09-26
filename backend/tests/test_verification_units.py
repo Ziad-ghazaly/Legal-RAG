@@ -254,3 +254,20 @@ def test_genuine_quotes_still_pass_with_word_boundaries() -> None:
     assert _span("لا يجوز لصاحب العمل إنهاء عقد العامل", SRC_FORBID) == "لا يجوز لصاحب العمل إنهاء عقد العامل"
     # small OCR-ish typo tolerated, span snapped to whole source words
     assert _span("إنهاء العقد بعد اخطار العامل كتابه", SRC_ALLOW) == "إنهاء العقد بعد إخطار العامل كتابة"
+
+
+# ── suspended articles are context only (user decision 2026-09-26) ──────────
+
+
+def test_suspended_source_cannot_support() -> None:
+    r = validate(CLAIM, raw("supported", ("P1", "supports", "إجازة سنوية مدفوعة الأجر مدتها ثلاثون يوماً")),
+                 {"P1": passage("P1", status="suspended")}, date(2026, 1, 1))
+    assert r.evidence[0].stance == "context" and r.verdict == "insufficient"
+
+
+def test_suspended_contradiction_never_blocks() -> None:
+    law = passage("P1", authority=0.7)
+    const = passage("P2", authority=0.99, doc_type="constitution", status="suspended")
+    r = result("C1", "supported", ev=[(law, "supports"), (const, "contradicts")])
+    out = score_review([r], {"P1": law, "P2": const}, date(2026, 1, 1))
+    assert r.evidence[1].blocking is False and out.status == "accepted"

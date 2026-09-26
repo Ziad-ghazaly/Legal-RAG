@@ -14,6 +14,7 @@ from app.text.arabic import normalize_for_search
 
 UnitType = Literal["article", "clause", "section", "paragraph", "table"]
 Status = Literal["in_force", "amended", "repealed"]
+UnitStatus = Literal["in_force", "amended", "repealed", "suspended"]
 
 
 class UnitIn(BaseModel):
@@ -28,6 +29,8 @@ class UnitIn(BaseModel):
     valid_from: date | None = None
     valid_to: date | None = None
     amended_by: list[str] | None = None
+    status: UnitStatus | None = None  # overrides the document status for this unit
+    notes: list[str] = []  # legislative history (amended / added / repealed / suspended)
 
     @field_validator("article_number", mode="before")
     @classmethod

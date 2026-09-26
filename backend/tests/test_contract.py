@@ -63,3 +63,13 @@ def test_law_numbers_are_normalized_like_citations() -> None:
     for raw in ("٦", "06", " 6 "):
         docs, errors = parse_jsonl(_jsonl({**GOOD, "number": raw}))
         assert errors == [] and docs[0].number == "6"
+
+
+def test_units_carry_status_and_notes() -> None:
+    row = {**GOOD, "units": [{**GOOD["units"][0], "status": "suspended",
+                              "notes": ["تم وقف العمل بالمادة عملا بالامر الاميري المؤرخ 10 / 5 / 2024"]}]}
+    docs, errors = parse_jsonl(_jsonl(row))
+    assert errors == []
+    assert docs[0].units[0].status == "suspended" and docs[0].units[0].notes[0].startswith("تم وقف")
+    docs, _ = parse_jsonl(_jsonl(GOOD))
+    assert docs[0].units[0].status is None and docs[0].units[0].notes == []

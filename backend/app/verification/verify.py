@@ -11,7 +11,7 @@ from app.verification.types import ClaimIn, Passage
 CLAIMS_PER_CALL = 6
 MAX_CALL_TOKENS = 40_000
 CONCURRENCY = 3
-_STATUS_AR = {"in_force": "ساري", "amended": "معدّل", "repealed": "ملغى"}
+_STATUS_AR = {"in_force": "ساري", "amended": "معدّل", "repealed": "ملغى", "suspended": "موقوف العمل"}
 
 
 def _tokens(p: Passage) -> int:

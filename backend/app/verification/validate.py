@@ -15,11 +15,12 @@ from app.verification.types import ClaimIn, ClaimResult, Evidence, Passage
 
 MIN_FUZZY = 90.0
 MAX_QUOTE_WORDS = 40
-NOT_IN_FORCE_NOTE = "المصدر ملغى أو غير سارٍ في التاريخ المرجعي؛ يُعرض للسياق فقط."
+NOT_IN_FORCE_NOTE = "المصدر ملغى أو موقوف العمل أو غير سارٍ في التاريخ المرجعي؛ يُعرض للسياق فقط."
 
 
 def in_force(p: Passage, as_of: date) -> bool:
-    if p.status == "repealed":
+    """Repealed and suspended sources are context only: never support, never block."""
+    if p.status in ("repealed", "suspended"):
         return False
     if p.valid_from and p.valid_from > as_of:
         return False
