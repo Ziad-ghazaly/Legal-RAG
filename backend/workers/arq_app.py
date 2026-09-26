@@ -34,4 +34,4 @@ class WorkerSettings:
     on_startup = _startup
     on_shutdown = _shutdown
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)  # arq reads an instance
-    job_timeout = 3600  # large JSONL corpora on CPU TEI
+    job_timeout = 6 * 3600  # a full law (e.g. the Civil Code, 1,104 articles) on CPU TEI
