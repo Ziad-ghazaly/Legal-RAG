@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, downloadPdf, json, streamEvents, type Reference, type Report, type ReviewDetail, type SourceChunk } from "../api";
 import { useAuth } from "../auth";
 import { Chip, ErrorNote, StatusBadge, Stepper } from "../components/ui";
-import { CLAIM_TYPE_AR, DOC_TYPE_AR, SOURCE_STATUS_AR, VERDICT_AR, citation, formatDate } from "../labels";
+import { CLAIM_TYPE_AR, DOC_TYPE_AR, SOURCE_STATUS_AR, VERDICT_AR, citation, formatDate, lawLink, noteBadges } from "../labels";
 
 const TABS = [
+  { key: "opinion", label: "نص الرأي" },
   { key: "summary", label: "الملخص" },
   { key: "claims", label: "تحليل الادعاءات" },
   { key: "refs", label: "المراجع" },
@@ -19,7 +20,8 @@ export default function ReviewResult() {
   const { id = "" } = useParams();
   const qc = useQueryClient();
   const [stage, setStage] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("summary");
+  const [tab, setTab] = useState<Tab>("opinion");
+  const [openClaim, setOpenClaim] = useState<string | null>(null);
   const [source, setSource] = useState<string | null>(null);
   const q = useQuery({ queryKey: ["review", id], queryFn: () => api<ReviewDetail>(`/reviews/${id}`) });
   const processing = q.data?.status === "processing";
@@ -101,8 +103,18 @@ export default function ReviewResult() {
             ))}
           </div>
           <div role="tabpanel">
+            {tab === "opinion" && (
+              <OpinionText
+                text={r.opinion_text}
+                report={report}
+                onClaim={(id) => {
+                  setOpenClaim(id);
+                  setTab("claims");
+                }}
+              />
+            )}
             {tab === "summary" && <Summary report={report} />}
-            {tab === "claims" && <Claims report={report} onSource={setSource} />}
+            {tab === "claims" && <Claims report={report} onSource={setSource} open={openClaim} setOpen={setOpenClaim} />}
             {tab === "refs" && <References report={report} onSource={setSource} />}
             {tab === "similar" && <Similar report={report} />}
             {tab === "suggested" && <Suggested text={report.suggested_opinion_ar} />}
@@ -188,12 +200,67 @@ function Summary({ report }: { report: Report }) {
   );
 }
 
-function Claims({ report, onSource }: { report: Report; onSource: (id: string) => void }) {
-  const [open, setOpen] = useState<string | null>(null);
+const HIGHLIGHT: Record<string, string> = {
+  supported: "bg-primary-light border-b-2 border-accent",
+  partially_supported: "bg-primary-light border-b-2 border-dashed border-accent",
+  contradicted: "bg-danger-light border-b-2 border-danger",
+  insufficient: "bg-neutral-light border-b-2 border-muted",
+};
+
+function OpinionText({ text, report, onClaim }: { text: string; report: Report; onClaim: (id: string) => void }) {
+  const spans = report.claims
+    .filter((c) => c.span && c.verdict)
+    .map((c) => ({ id: c.id, verdict: c.verdict as string, start: c.span![0], end: c.span![1] }))
+    .sort((a, b) => a.start - b.start);
+  const parts: React.ReactNode[] = [];
+  let at = 0;
+  for (const s of spans) {
+    if (s.start < at) continue; // overlapping claims share one sentence: first one wins
+    parts.push(text.slice(at, s.start));
+    parts.push(
+      <button
+        key={s.id}
+        onClick={() => onClaim(s.id)}
+        title={`${s.id} — ${VERDICT_AR[s.verdict]}`}
+        className={`rounded-sm text-start ${HIGHLIGHT[s.verdict] ?? ""}`}
+      >
+        {text.slice(s.start, s.end)}
+      </button>,
+    );
+    at = s.end;
+  }
+  parts.push(text.slice(at));
+  return (
+    <div className="card space-y-3 p-5">
+      <div className="flex flex-wrap gap-3 text-xs text-muted">
+        <span>انقر على جملة مظللة لعرض أدلتها:</span>
+        {(["supported", "partially_supported", "contradicted", "insufficient"] as const).map((v) => (
+          <span key={v} className={`px-1 ${HIGHLIGHT[v]}`}>{VERDICT_AR[v]}</span>
+        ))}
+      </div>
+      <p className="whitespace-pre-wrap leading-9">{parts}</p>
+    </div>
+  );
+}
+
+function Claims({
+  report,
+  onSource,
+  open,
+  setOpen,
+}: {
+  report: Report;
+  onSource: (id: string) => void;
+  open: string | null;
+  setOpen: (id: string | null) => void;
+}) {
+  useEffect(() => {
+    if (open) document.getElementById(`claim-${open}`)?.scrollIntoView({ block: "center" });
+  }, [open]);
   return (
     <div className="card divide-y divide-line">
       {report.claims.map((c) => (
-        <div key={c.id} className="p-4">
+        <div key={c.id} id={`claim-${c.id}`} className={`p-4 ${open === c.id ? "bg-bg" : ""}`}>
           <button className="flex w-full items-start gap-3 text-start" aria-expanded={open === c.id} onClick={() => setOpen(open === c.id ? null : c.id)}>
             <span className="text-sm text-muted">{c.id}</span>
             <span className="flex-1">{c.text_ar}</span>
@@ -218,6 +285,9 @@ function Claims({ report, onSource }: { report: Report; onSource: (id: string) =
                     </div>
                     «{e.quote_ar}»
                     <button className="ms-2 text-primary underline" onClick={() => onSource(e.chunk_id)}>عرض النص الكامل</button>
+                    {p && (
+                      <Link className="ms-3 text-primary underline" to={lawLink(p.document_id, p.unit_id)}>فتح في القانون</Link>
+                    )}
                   </blockquote>
                 );
               })}
@@ -236,10 +306,15 @@ function RefCard({ r, onSource }: { r: Reference; onSource: (id: string) => void
         <span className="font-semibold">{citation(r)}</span>
         <Chip tone={r.status === "repealed" ? "contradicted" : "insufficient"}>{SOURCE_STATUS_AR[r.status] ?? r.status}</Chip>
         {r.blocking && <Chip tone="contradicted">تعارض مانع</Chip>}
+        {noteBadges(r.status, r.notes ?? []).map((b) => <Chip key={b.label} tone={b.tone}>{b.label}</Chip>)}
       </div>
       {r.note && <p className="text-xs text-warn">{r.note}</p>}
+      {(r.notes ?? []).map((n) => <p key={n} className="text-xs text-warn">{n}</p>)}
       <p className="text-sm leading-7">«{r.quote_ar}»</p>
-      <button className="text-sm text-primary underline" onClick={() => onSource(r.chunk_id)}>عرض النص الكامل</button>
+      <div className="flex gap-3 text-sm">
+        <button className="text-primary underline" onClick={() => onSource(r.chunk_id)}>عرض النص الكامل</button>
+        {r.document_id && <Link className="text-primary underline" to={lawLink(r.document_id, r.unit_id)}>فتح في القانون</Link>}
+      </div>
     </article>
   );
 }
@@ -306,7 +381,14 @@ function SourceDrawer({ chunkId, onClose }: { chunkId: string; onClose: () => vo
               {DOC_TYPE_AR[d.document.doc_type]} · {SOURCE_STATUS_AR[d.document.status]}
               {d.unit.path?.length ? ` · ${d.unit.path.join(" — ")}` : ""}
             </p>
-            <h3 className="font-semibold">{d.unit.article_label}</h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-semibold">{d.unit.article_label}</h3>
+              {noteBadges(d.unit.status, d.unit.notes).map((b) => <Chip key={b.label} tone={b.tone}>{b.label}</Chip>)}
+              <Link className="ms-auto text-sm text-primary underline" to={lawLink(d.document.id, d.unit.id)} onClick={onClose}>
+                فتح في القانون
+              </Link>
+            </div>
+            {d.unit.notes.map((n) => <p key={n} className="text-xs text-warn">{n}</p>)}
             <p className="whitespace-pre-wrap leading-8">
               {highlight(d.unit.text, d.chunk.text)}
             </p>

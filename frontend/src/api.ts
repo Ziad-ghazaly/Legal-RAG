@@ -168,11 +168,14 @@ export type ClaimOut = {
   reasoning_ar: string;
   weight: number;
   evidence: Evidence[];
+  span?: [number, number] | null;
 };
 export type PassageOut = {
   pid: string;
   chunk_id: string;
   unit_id: string;
+  document_id: string;
+  notes: string[] | null;
   title_ar: string;
   number: string | null;
   year: number | null;
@@ -184,6 +187,9 @@ export type PassageOut = {
 export type Reference = {
   pid: string;
   chunk_id: string;
+  document_id: string;
+  unit_id: string;
+  notes: string[];
   title_ar: string;
   number: string | null;
   year: number | null;
@@ -226,9 +232,38 @@ export type ReviewDetail = {
 };
 export type SourceChunk = {
   chunk: { id: string; text: string; context_header: string; status: string };
-  unit: { article_label: string | null; path: string[] | null; text: string; valid_from: string | null; valid_to: string | null };
-  document: { title_ar: string; doc_type: string; number: string | null; year: number | null; status: string };
+  unit: {
+    id: string;
+    article_label: string | null;
+    path: string[] | null;
+    text: string;
+    valid_from: string | null;
+    valid_to: string | null;
+    status: string;
+    notes: string[];
+  };
+  document: { id: string; title_ar: string; doc_type: string; number: string | null; year: number | null; status: string };
 };
+export type LawSummary = {
+  id: string;
+  title_ar: string;
+  doc_type: string;
+  number: string | null;
+  year: number | null;
+  status: string;
+  article_count: number;
+};
+export type LawUnit = {
+  id: string;
+  unit_type: string;
+  article_number: number | null;
+  article_label: string | null;
+  path: string[];
+  status: string;
+  notes: string[];
+  text: string;
+};
+export type LawDetail = { document: Omit<LawSummary, "article_count">; units: LawUnit[] };
 export type Collection = { id: number; name: string; description: string | null };
 export type UserRow = { id: string; username: string; role: string; is_active: boolean; collection_ids: number[] };
 export type Job = {

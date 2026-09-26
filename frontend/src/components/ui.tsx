@@ -25,6 +25,7 @@ const VERDICT_STYLE: Record<string, string> = {
   partially_supported: "bg-primary-light text-accent",
   contradicted: "bg-danger-light text-danger",
   insufficient: "bg-neutral-light text-muted",
+  warn: "bg-warn-light text-warn",
 };
 
 export function Chip({ tone, children }: { tone: string; children: React.ReactNode }) {
@@ -66,6 +67,7 @@ export function Layout() {
           <nav className="flex gap-1">
             <NavLink to="/" end className={link}>المراجعات</NavLink>
             <NavLink to="/reviews/new" className={link}>مراجعة جديدة</NavLink>
+            <NavLink to="/laws" className={link}>التشريعات</NavLink>
             {me?.role === "admin" && <NavLink to="/admin" className={link}>الإدارة</NavLink>}
           </nav>
           <div className="ms-auto flex items-center gap-3 text-sm text-muted">

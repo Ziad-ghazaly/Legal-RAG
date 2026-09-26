@@ -26,7 +26,23 @@ export const SOURCE_STATUS_AR: Record<string, string> = {
   in_force: "ساري",
   amended: "معدّل",
   repealed: "ملغى",
+  suspended: "موقوف العمل",
 };
+
+/** Badges from an article's legislative notes (footnotes of the compilation). */
+export function noteBadges(status: string, notes: string[]): { label: string; tone: string }[] {
+  const all = notes.join(" ");
+  const out: { label: string; tone: string }[] = [];
+  if (status === "repealed") out.push({ label: "ملغاة", tone: "contradicted" });
+  if (status === "suspended") out.push({ label: "موقوفة", tone: "warn" });
+  if (/معدل|مستبدل|عدلت|استبدل/.test(all)) out.push({ label: "معدّلة", tone: "supported" });
+  if (/مضاف|اضيف|أضيف/.test(all)) out.push({ label: "مضافة", tone: "supported" });
+  return out;
+}
+
+export function lawLink(documentId: string, unitId: string): string {
+  return `/laws/${encodeURIComponent(documentId)}#${encodeURIComponent(unitId)}`;
+}
 
 export const DOC_TYPE_AR: Record<string, string> = {
   constitution: "الدستور",

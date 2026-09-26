@@ -6,6 +6,8 @@ import { AuthProvider, RequireAuth } from "./auth";
 import { Layout } from "./components/ui";
 import Admin from "./pages/Admin";
 import EditReview from "./pages/EditReview";
+import Law from "./pages/Law";
+import Laws from "./pages/Laws";
 import Login from "./pages/Login";
 import NewReview from "./pages/NewReview";
 import ReviewResult from "./pages/ReviewResult";
@@ -26,6 +28,8 @@ createRoot(document.getElementById("root")!).render(
               <Route path="reviews/new" element={<NewReview />} />
               <Route path="reviews/:id" element={<ReviewResult />} />
               <Route path="reviews/:id/edit" element={<RequireAuth roles={["admin", "reviewer"]}><EditReview /></RequireAuth>} />
+              <Route path="laws" element={<Laws />} />
+              <Route path="laws/:docId" element={<Law />} />
               <Route path="admin" element={<RequireAuth roles={["admin"]}><Admin /></RequireAuth>} />
             </Route>
           </Routes>
