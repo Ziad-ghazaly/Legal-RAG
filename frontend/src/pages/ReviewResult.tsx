@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, downloadPdf, json, streamEvents, type Reference, type Report, type ReviewDetail, type SourceChunk } from "../api";
 import { useAuth } from "../auth";
 import { Chip, ErrorNote, StatusBadge, Stepper } from "../components/ui";
-import { CLAIM_TYPE_AR, DOC_TYPE_AR, SOURCE_STATUS_AR, VERDICT_AR, citation, formatDate, lawLink, noteBadges } from "../labels";
+import { CLAIM_TYPE_AR, DOC_TYPE_AR, SOURCE_STATUS_AR, VERDICT_AR, citation, formatDate, lawLink, noteBadges, opinionMarks } from "../labels";
 
 const TABS = [
   { key: "opinion", label: "نص الرأي" },
@@ -60,7 +60,7 @@ export default function ReviewResult() {
             <span>{formatDate(r.created_at)}</span>
             {r.as_of_date && <span>التاريخ المرجعي: <span dir="ltr">{r.as_of_date}</span></span>}
             {r.status === "approved" && r.approved_by && (
-              <span>اعتمده {r.approved_by}{r.approved_at ? ` · ${formatDate(r.approved_at)}` : ""}</span>
+              <span>اعتمده <bdi>{r.approved_by}</bdi>{r.approved_at && <> · <bdi>{formatDate(r.approved_at)}</bdi></>}</span>
             )}
           </div>
         </div>
@@ -208,14 +208,9 @@ const HIGHLIGHT: Record<string, string> = {
 };
 
 function OpinionText({ text, report, onClaim }: { text: string; report: Report; onClaim: (id: string) => void }) {
-  const spans = report.claims
-    .filter((c) => c.span && c.verdict)
-    .map((c) => ({ id: c.id, verdict: c.verdict as string, start: c.span![0], end: c.span![1] }))
-    .sort((a, b) => a.start - b.start);
   const parts: React.ReactNode[] = [];
   let at = 0;
-  for (const s of spans) {
-    if (s.start < at) continue; // overlapping claims share one sentence: first one wins
+  for (const s of opinionMarks(report.claims)) {
     parts.push(text.slice(at, s.start));
     parts.push(
       <button
