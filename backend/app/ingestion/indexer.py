@@ -9,7 +9,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from datetime import date
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -44,6 +44,18 @@ async def _index_one(
         dropped.extend({"doc_id": doc.doc_id, **d} for d in why)
         drafts.extend((unit, c) for c in chunks)
 
+    # Embed before taking the lock so concurrent jobs still embed in parallel.
+    vectors = await embed(
+        [
+            embedder.build_passage_input({"context_header": c.context_header, "text": c.text})
+            for _, c in drafts
+        ]
+    )
+    vector_of = {id(c): v for (_, c), v in zip(drafts, vectors, strict=True)}
+
+    # Serialise dedup + insert per collection: two jobs racing on the same text would
+    # otherwise both see "no existing copy" and both keep it. Released at commit.
+    await session.execute(select(func.pg_advisory_xact_lock(collection_id)))
     await session.execute(delete(Document).where(Document.id == doc.doc_id))
 
     # Exact duplicates inside a collection: keep one copy — the in-force, higher-authority,
@@ -97,12 +109,6 @@ async def _index_one(
         seen.add(c.content_hash)
         kept.append((unit, c))
 
-    inputs = [
-        embedder.build_passage_input({"context_header": c.context_header, "text": c.text})
-        for _, c in kept
-    ]
-    vectors = await embed(inputs)
-
     model = get_settings().embedding_model
     session.add(
         Document(
@@ -145,7 +151,8 @@ async def _index_one(
             )
         )
     await session.flush()
-    for (unit, c), vec in zip(kept, vectors, strict=True):
+    for unit, c in kept:
+        vec = vector_of[id(c)]
         session.add(
             Chunk(
                 id=uuid.uuid4(),

@@ -164,3 +164,41 @@ def test_constitutional_court_laws_are_not_the_constitution() -> None:
 """
     docs = by_id(convert(md))
     assert set(docs) == {"kw-law-14-1973", "kw-regulation-1974"}
+
+
+def test_plain_line_article_headings_are_split_not_merged() -> None:
+    """Rule 2 found articles glued together where the compilation's heading isn't bold."""
+    md = """# القانون المدني
+
+> **المرسوم بالقانون رقم 67 لسنة 1980م بإصدار القانون المدني**
+
+**مادة 519**
+
+1- يسري على بيع المريض مرض الموت أحكام المادة (942).
+
+المادة (519 مكرر)
+
+السلم بيع مؤجل التسليم بثمن معجل.
+
+المادة (519 مكرر أ )
+
+يشترط في المسلم فيه أن يكون مما يجوز بيعه.
+
+المادة 213 مكرر 10
+
+مع عدم الإخلال بأحكام سقوط الحق بمضي المدة يترتب على إلغاء حكم الإدانة محو آثاره.
+
+المادة السابقة تسري على العقود المبرمة قبل العمل بهذا القانون.
+"""
+    (doc,) = convert(md)
+    u = units(doc)
+    assert list(u) == [
+        "kw-decree_law-67-1980/a519",
+        "kw-decree_law-67-1980/a519-bis",
+        "kw-decree_law-67-1980/a519-bis-أ",
+        "kw-decree_law-67-1980/a213-bis-10",
+    ]
+    assert u["kw-decree_law-67-1980/a519"]["text"] == "1- يسري على بيع المريض مرض الموت أحكام المادة (942)."
+    assert u["kw-decree_law-67-1980/a519-bis-أ"]["article_label"] == "المادة 519 مكرر أ"
+    # a sentence that merely starts with "المادة السابقة" stays body text
+    assert u["kw-decree_law-67-1980/a213-bis-10"]["text"].endswith("قبل العمل بهذا القانون.")

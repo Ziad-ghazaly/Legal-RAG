@@ -133,3 +133,24 @@ async def test_unit_status_notes_and_order_are_persisted(pg) -> None:
     assert rows[1].notes[0].startswith("تم وقف")
     chunk_status = dict((await pg.execute(select(Chunk.unit_id, Chunk.status))).all())
     assert chunk_status == {"c/a3": "in_force", "c/a1": "suspended", "c/a2": "repealed"}
+
+
+@pytest.mark.asyncio
+async def test_concurrent_jobs_do_not_both_keep_the_same_content(pg) -> None:
+    """Two ingestion jobs in one collection racing on identical text keep a single copy."""
+    import asyncio
+
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    async def slow_embed(texts: list[str]) -> list[list[float]]:
+        await asyncio.sleep(0.5)
+        return await fake_embed(texts)
+
+    async with AsyncSession(pg.bind, expire_on_commit=False) as other:
+        await asyncio.gather(
+            index_documents(pg, [law()], collection_id=1, count_tokens=fake_count, embed=slow_embed),
+            index_documents(other, [law(doc_id="kw-law-6-2010-copy")], collection_id=1,
+                            count_tokens=fake_count, embed=slow_embed),
+        )
+    hashes = (await pg.execute(select(Chunk.content_hash, func.count()).group_by(Chunk.content_hash))).all()
+    assert hashes and all(n == 1 for _, n in hashes)

@@ -21,9 +21,12 @@ _ORDINALS = {
 _ORD = "|".join(sorted(_ORDINALS, key=len, reverse=True))
 _FOOTNOTE_DEF = re.compile(r"^\[\^(p\d+-\d+)\]:\s*(.*)$")
 _FOOTNOTE_REF = re.compile(r"\[\^(p\d+-\d+)\]")
+# A whole line that is only an article heading, bold or not (the compilation mixes both):
+# "**مادة 19**", "**المادة الأولى**", "المادة (519 مكرر)", "المادة (519 مكرر أ )",
+# "المادة 213 مكرر 10".
 _ARTICLE = re.compile(
-    rf"^\*\*\s*(?:ال)?مادة\s*(?:رقم\s*)?\(?\s*(?:(?P<num>[0-9٠-٩]+)|(?:ال)?(?P<ord>{_ORD}))\s*\)?"
-    r"\s*(?P<bis>مكرر(?:اً|ًا|ا)?)?\s*(?P<bisn>[0-9٠-٩]+|\([^)]{1,4}\))?\s*\*\*$"
+    rf"^(?:\*\*)?\s*(?:ال)?مادة\s*(?:رقم\s*)?\(?\s*(?:(?P<num>[0-9٠-٩]+)|(?:ال)?(?P<ord>{_ORD}))"
+    r"\s*(?P<bis>مكرر(?:اً|ًا|ا)?)?\s*(?P<bisn>[0-9٠-٩]+|\([^)]{1,4}\)|[أ-ي])?\s*\)?\s*[:.\-–]?\s*(?:\*\*)?$"
 )
 _HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 _NUM_YEAR = re.compile(r"(?:رقم\s*)?([0-9٠-٩]+)\s*لسنة\s*([0-9٠-٩]{4})")
