@@ -34,3 +34,9 @@ Append-only log.
 - **D-030** Rerank batches of 8 with `TEI_RERANK_TIMEOUT_S` (default 120 s): CPU TEI takes ~1.6 s per 512-token pair. The rule-3 latency gate (p95 ≤ 1.5 s) needs the GPU TEI image.
 - **D-031** Semantic chunking uses sentence packing with 1-sentence overlap (not the embedding-breakpoint method); upgrade if rule 2/3 show a need.
 - **D-032** CI runs lint + unit + integration (ParadeDB service, fake TEI). Production rules run against a live stack (see RUNBOOK), not in CI.
+- **D-033** Corpus = مجموعة التشريعات الكويتية (Jazaa Al-Otaibi, amendments to 1/4/2026), converted by `backend/tools/md_to_jsonl.py` (72 laws, 7,351 units). All test data wiped 2026-09-26.
+- **D-034** Authority weights (product owner, 2026-09-26): constitution 0.99; law = decree_law 0.70 (Const. art. 71); decree 0.65; regulation 0.60; ministerial_decision 0.50; circular 0.30; legal_opinion/fatwa 0.15; court_ruling 0.10 (cassation 0.12); commentary 0.05. v1's negation/cosine resolver not reintroduced.
+- **D-035** Unit status `suspended` (articles suspended by the Amiri order of 10/5/2024): searchable, shown with the note, but context only — never supports, never blocks. Partial suspensions ("الفقرة الأخيرة") are treated conservatively as whole-article suspension.
+- **D-036** Approval workflow: reviewers/admins approve / edit & approve / reject; every action is an append-only version/approval + audit_log row. PDF export (WeasyPrint, Noto Arabic fonts) for accepted/approved reviews, owner or staff; contains the final opinion + full verification report.
+- **D-037** Edit & approve uses a plain-text RTL editor (references panel, `[P#]` insertion, word diff) instead of TipTap.
+- **D-038** Ingestion throughput: TEI embed timeout 600 s, worker `max_jobs=2`, job timeout 6 h (CPU TEI ≈ 2.6 chunks/s; parallel jobs caused timeouts and dropped whole laws).

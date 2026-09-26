@@ -96,3 +96,13 @@ python -m production_rules.rule2_embedding_quality.check_corpus_quality
 python -m production_rules.rule3_retrieval_eval.run_retrieval_eval --gold production_rules/rule3_retrieval_eval/gold/retrieval_gold.jsonl
 ```
 Note: `production_rules/.env.example` says `NORMALIZER_VERSION=1`; v3 stores `v1` — set `v1`.
+
+## Load / reload the Kuwaiti legislation corpus
+
+```bash
+cd backend
+python -m tools.md_to_jsonl /path/to/JEZAALOTAIBI-15.md > kw_corpus.jsonl   # 72 laws
+# Admin UI → الإدارة → استيراد المصادر → upload kw_corpus.jsonl into «التشريعات الكويتية»
+# (or split into several files; re-ingesting a law replaces it — idempotent per doc_id)
+```
+On CPU TEI a full load takes ~45–60 min. Then run production rules 1 and 2.
