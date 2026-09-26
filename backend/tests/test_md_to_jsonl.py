@@ -202,3 +202,53 @@ def test_plain_line_article_headings_are_split_not_merged() -> None:
     assert u["kw-decree_law-67-1980/a519-bis-أ"]["article_label"] == "المادة 519 مكرر أ"
     # a sentence that merely starts with "المادة السابقة" stays body text
     assert u["kw-decree_law-67-1980/a213-bis-10"]["text"].endswith("قبل العمل بهذا القانون.")
+
+
+def test_bis_suffixes_with_guillemets_and_dashes_are_split() -> None:
+    md = """# قانون الجزاء
+
+> **القانون رقم 16 لسنة 1960 بإصدار قانون الجزاء**
+
+**مادة 237 مكررا**
+
+لا يسأل جزائيا من ارتكب الفعل تنفيذا لأمر صادر إليه.
+
+مادة 237 مكرر1 « أ »
+
+لا تقام الدعوى الجزائية إلا بناء على طلب.
+
+المادة 26 مكررا -ج
+
+يجوز للمؤجر إنهاء العقد.
+
+المادة 26 مكرر - د
+
+للمستأجر حق البقاء في العين.
+"""
+    (doc,) = convert(md)
+    u = units(doc)
+    assert list(u) == ["kw-law-16-1960/a237-bis", "kw-law-16-1960/a237-bis-1أ",
+                       "kw-law-16-1960/a26-bis-ج", "kw-law-16-1960/a26-bis-د"]
+    assert u["kw-law-16-1960/a237-bis"]["text"] == "لا يسأل جزائيا من ارتكب الفعل تنفيذا لأمر صادر إليه."
+
+
+def test_heading_glued_to_its_text_starts_a_new_article() -> None:
+    md = """# قانون العمالة المنزلية
+
+> **القانون رقم 68 لسنة 2015 في شأن العمالة المنزلية**
+
+**مادة 27**
+
+يستحق العامل المنزلي أجراً إضافياً عن ساعات العمل الإضافية.
+
+مادة 28إذا رفض صاحب العمل تعويض العامل المنزلي كان له التقدم بشكوى.
+
+المادة رقم 29يشمل الأجر كل ما يتقاضاه العامل.
+
+وفقاً للمواد 61 إلى 64 من الدستور.
+"""
+    (doc,) = convert(md)
+    u = units(doc)
+    assert list(u) == ["kw-law-68-2015/a27", "kw-law-68-2015/a28", "kw-law-68-2015/a29"]
+    assert u["kw-law-68-2015/a28"]["text"] == "إذا رفض صاحب العمل تعويض العامل المنزلي كان له التقدم بشكوى."
+    assert u["kw-law-68-2015/a29"]["text"].startswith("يشمل الأجر")

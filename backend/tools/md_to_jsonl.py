@@ -23,11 +23,14 @@ _FOOTNOTE_DEF = re.compile(r"^\[\^(p\d+-\d+)\]:\s*(.*)$")
 _FOOTNOTE_REF = re.compile(r"\[\^(p\d+-\d+)\]")
 # A whole line that is only an article heading, bold or not (the compilation mixes both):
 # "**مادة 19**", "**المادة الأولى**", "المادة (519 مكرر)", "المادة (519 مكرر أ )",
-# "المادة 213 مكرر 10".
+# "المادة 213 مكرر 10", "مادة 237 مكرر1 « أ »", "المادة 26 مكررا -ج".
 _ARTICLE = re.compile(
     rf"^(?:\*\*)?\s*(?:ال)?مادة\s*(?:رقم\s*)?\(?\s*(?:(?P<num>[0-9٠-٩]+)|(?:ال)?(?P<ord>{_ORD}))"
-    r"\s*(?P<bis>مكرر(?:اً|ًا|ا)?)?\s*(?P<bisn>[0-9٠-٩]+|\([^)]{1,4}\)|[أ-ي])?\s*\)?\s*[:.\-–]?\s*(?:\*\*)?$"
+    r"\s*(?P<bis>مكرر(?:اً|ًا|ا)?)?(?P<bisn>(?:[\s\-–]*(?:[0-9٠-٩]+|\([^)]{1,4}\)|«[^»]{1,4}»|[أ-ي])){1,2})?"
+    r"\s*\)?\s*[:.\-–]?\s*(?:\*\*)?$"
 )
+# Heading glued to its text by the source: "مادة 28إذا رفض…" (digits directly followed by a letter).
+_GLUED = re.compile(r"^(?:ال)?مادة\s*(?:رقم\s*)?\(?\s*(?P<num>[0-9٠-٩]+)(?P<rest>[ء-ي].*)$")
 _HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 _NUM_YEAR = re.compile(r"(?:رقم\s*)?([0-9٠-٩]+)\s*لسنة\s*([0-9٠-٩]{4})")
 _YEAR = re.compile(r"لسنة\s*([0-9٠-٩]{4})")
@@ -138,11 +141,16 @@ def convert(md: str) -> list[dict]:
             label = f"المادة {num}" + (" مكرر" if a["bis"] else "")
             uid = f"{doc['doc_id']}/a{num}" + ("-bis" if a["bis"] else "")
             if a["bisn"]:
-                label += f" {a['bisn']}"
+                label += " " + re.sub(r"[\s\-–]+", " ", a["bisn"]).strip()
                 uid += "-" + re.sub(r"\W", "", a["bisn"].translate(_DIGITS))
             unit = new_unit("article", label, uid, num)
             unit["notes"].extend(notes_by_ref[r] for r in refs if r in notes_by_ref)
             continue
+        if g := _GLUED.match(line):
+            close()
+            num = int(g["num"].translate(_DIGITS))
+            unit = new_unit("article", f"المادة {num}", f"{doc['doc_id']}/a{num}", num)
+            line = g["rest"]
 
         if unit is None:
             continue
