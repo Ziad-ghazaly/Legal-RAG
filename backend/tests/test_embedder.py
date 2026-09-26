@@ -106,3 +106,18 @@ def test_embed_texts_is_synchronous_per_production_rules_contract(monkeypatch):
     monkeypatch.setattr(httpx.Client, "post", fake_post)
     vecs = embed_texts(["a", "b"])
     assert isinstance(vecs, list) and len(vecs) == 2 and len(vecs[0]) == 1024
+
+
+async def test_async_embed_uses_the_configurable_embed_timeout(monkeypatch):
+    """CPU TEI under load needs minutes per batch; the default 30 s dropped whole laws."""
+    from app.retrieval import embedder
+
+    seen = []
+
+    async def fake_post(url, payload, timeout=None):
+        seen.append(timeout)
+        return [[0.1] * 1024 for _ in payload["inputs"]]
+
+    monkeypatch.setattr(embedder, "post_tei", fake_post)
+    await embedder.aembed_texts(["a"])
+    assert seen == [embedder.get_settings().tei_embed_timeout_s] and seen[0] >= 300

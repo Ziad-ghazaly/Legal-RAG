@@ -28,6 +28,7 @@ dependencies = [
     "pymupdf>=1.24,<2",
     "python-docx>=1.1,<2",
     "rapidfuzz>=3.9,<4",
+    "weasyprint>=62,<67",  # Arabic RTL PDF export (needs Pango/HarfBuzz)
 ]
 
 [project.optional-dependencies]
@@ -61,6 +62,8 @@ ignore = ["RUF001", "RUF002", "RUF003"]
 "app/db/alembic/versions/*" = ["E501"]
 "tests/*" = ["E501"]  # Arabic fixture strings
 "app/verification/prompts.py" = ["E501"]  # Arabic prompt prose
+"app/verification/export.py" = ["E501"]  # HTML/CSS template
+"tests/integration/test_workflow.py" = ["F811"]  # imported pytest fixture
 
 [tool.mypy]
 python_version = "3.12"

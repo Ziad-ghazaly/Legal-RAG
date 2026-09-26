@@ -1,19 +1,21 @@
-"""Reviews: submit an opinion, read results, stream progress (SSE)."""
+"""Reviews: submit an opinion, read results, stream progress (SSE), and the approval
+workflow (versions, approve, reject) with PDF export."""
 
+import asyncio
 import uuid
 from datetime import UTC, date, datetime, time
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from fastapi.responses import Response, StreamingResponse
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_role
 from app.core import events, queue, storage
 from app.core.config import get_settings
-from app.db.models import Approval, Review, ReviewVersion, User
+from app.db.models import Approval, AuditLog, Review, ReviewVersion, User
 from app.db.session import get_session
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
@@ -21,6 +23,9 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 Session = Annotated[AsyncSession, Depends(get_session)]
 ALLOWED_EXT = {"pdf", "docx", "txt"}
 STAFF = {"admin", "reviewer"}
+Staff = Annotated[User, Depends(require_role("admin", "reviewer"))]
+ACTIONABLE = {"needs_review", "no_information", "accepted"}
+EXPORTABLE = {"accepted", "approved"}
 
 
 class ReviewSummary(BaseModel):
@@ -154,11 +159,19 @@ async def get_review(review_id: uuid.UUID, user: CurrentUser, session: Session) 
             )
         )
     ).scalar_one_or_none()
-    approvals = (
-        await session.execute(
-            select(Approval).where(Approval.review_id == review.id).order_by(Approval.created_at)
-        )
-    ).scalars()
+    approvals = list(
+        (
+            await session.execute(
+                select(Approval)
+                .where(Approval.review_id == review.id)
+                .order_by(Approval.created_at)
+            )
+        ).scalars()
+    )
+    decided = next((a for a in reversed(approvals) if a.decision != "reject"), None)
+    approver = (
+        await session.get(User, decided.approver_id) if decided and decided.approver_id else None
+    )
     return {
         "id": str(review.id),
         "title": review.title,
@@ -171,6 +184,10 @@ async def get_review(review_id: uuid.UUID, user: CurrentUser, session: Session) 
         "created_at": review.created_at,
         "report": version.content if version else None,
         "approvals": [{"version": a.version, "decision": a.decision} for a in approvals],
+        "approved_by": approver.username if approver else None,
+        "approved_at": decided.created_at if decided else None,
+        "rejection_reason": next((a.comment for a in approvals if a.decision == "reject"), None),
+        "final_text": await _final_text(session, review),
     }
 
 
@@ -189,4 +206,162 @@ async def review_events(
         stream(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# ── approval workflow (P4 slice) ─────────────────────────────────────────────
+
+
+class EditIn(BaseModel):
+    text: str = Field(min_length=20, max_length=200_000)
+
+
+class ApproveIn(BaseModel):
+    version: int | None = None
+
+
+class RejectIn(BaseModel):
+    reason: str = Field(min_length=3, max_length=2000)
+
+
+async def _versions(session: AsyncSession, review_id: uuid.UUID) -> list[ReviewVersion]:
+    rows = await session.execute(
+        select(ReviewVersion)
+        .where(ReviewVersion.review_id == review_id)
+        .order_by(ReviewVersion.version)
+    )
+    return list(rows.scalars())
+
+
+async def _final_text(session: AsyncSession, review: Review) -> str:
+    edits = [v for v in await _versions(session, review.id) if v.kind == "human_edit"]
+    return edits[-1].content["text"] if edits else review.opinion_text
+
+
+async def _actionable(session: AsyncSession, user: User, review_id: uuid.UUID) -> Review:
+    review = await _visible(session, user, review_id)
+    if review.status not in ACTIONABLE:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "لا يمكن تنفيذ هذا الإجراء على مراجعة بهذه الحالة."
+        )
+    return review
+
+
+def _audit(user: User, action: str, review: Review, payload: dict[str, Any]) -> AuditLog:
+    return AuditLog(
+        actor_id=user.id,
+        action=action,
+        target_type="review",
+        target_id=str(review.id),
+        payload=payload,
+    )
+
+
+@router.get("/{review_id}/versions")
+async def list_versions(
+    review_id: uuid.UUID, user: CurrentUser, session: Session
+) -> list[dict[str, Any]]:
+    review = await _visible(session, user, review_id)
+    return [
+        {
+            "version": v.version,
+            "kind": v.kind,
+            "created_at": v.created_at,
+            "text": v.content.get("text") if v.kind != "ai_report" else None,
+        }
+        for v in await _versions(session, review.id)
+    ]
+
+
+@router.post("/{review_id}/versions", status_code=status.HTTP_201_CREATED)
+async def save_version(
+    review_id: uuid.UUID, body: EditIn, user: Staff, session: Session
+) -> dict[str, int]:
+    review = await _actionable(session, user, review_id)
+    number = max((v.version for v in await _versions(session, review.id)), default=0) + 1
+    session.add(
+        ReviewVersion(
+            review_id=review.id,
+            version=number,
+            kind="human_edit",
+            content={"text": body.text},
+            author_id=user.id,
+        )
+    )
+    session.add(_audit(user, "review.edit", review, {"version": number}))
+    await session.commit()
+    return {"version": number}
+
+
+@router.post("/{review_id}/approve")
+async def approve(
+    review_id: uuid.UUID, body: ApproveIn, user: Staff, session: Session
+) -> dict[str, Any]:
+    review = await _actionable(session, user, review_id)
+    versions = await _versions(session, review.id)
+    edits = [v.version for v in versions if v.kind == "human_edit"]
+    number = body.version or (edits[-1] if edits else 1)
+    if number not in {v.version for v in versions}:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "النسخة غير موجودة.")
+    session.add(
+        Approval(review_id=review.id, version=number, decision="approve", approver_id=user.id)
+    )
+    session.add(_audit(user, "review.approve", review, {"version": number}))
+    review.status = "approved"
+    await session.commit()
+    return {"status": review.status, "version": number}
+
+
+@router.post("/{review_id}/reject")
+async def reject(
+    review_id: uuid.UUID, body: RejectIn, user: Staff, session: Session
+) -> dict[str, str]:
+    review = await _actionable(session, user, review_id)
+    latest = max((v.version for v in await _versions(session, review.id)), default=1)
+    session.add(
+        Approval(
+            review_id=review.id,
+            version=latest,
+            decision="reject",
+            approver_id=user.id,
+            comment=body.reason,
+        )
+    )
+    session.add(_audit(user, "review.reject", review, {"reason": body.reason}))
+    review.status = "rejected"
+    await session.commit()
+    return {"status": review.status}
+
+
+@router.get("/{review_id}/export.pdf")
+async def export_pdf(review_id: uuid.UUID, user: CurrentUser, session: Session) -> Response:
+    from app.verification import export
+
+    review = await _visible(session, user, review_id)
+    if review.status not in EXPORTABLE:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "التصدير متاح فقط للمراجعات المقبولة أو المعتمدة."
+        )
+    info = await get_review(review_id, user, session)
+    owner = await session.get(User, review.user_id)
+    approvals = [a for a in info["approvals"] if a["decision"] != "reject"]
+    approved_at = info["approved_at"]
+    html = export.render_html(
+        title=review.title,
+        question=review.question,
+        final_text=info["final_text"],
+        report=info["report"] or {},
+        status=review.status,
+        score=review.score,
+        approver=info["approved_by"],
+        approved_at=approved_at.strftime("%Y-%m-%d %H:%M") if approved_at else None,
+        version=approvals[-1]["version"] if approvals else None,
+        owner=owner.username if owner else "",
+        as_of=str(review.as_of_date or review.created_at.date()),
+    )
+    pdf = await asyncio.to_thread(export.html_to_pdf, html)
+    return Response(
+        pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="review-{review.id}.pdf"'},
     )

@@ -75,7 +75,11 @@ async def aembed_texts(texts: list[str]) -> list[list[float]]:
     out: list[list[float]] = []
     for start in range(0, len(texts), _BATCH):
         batch = texts[start : start + _BATCH]
-        data = await post_tei(f"{settings.tei_embed_url}/embed", {"inputs": batch})
+        data = await post_tei(
+            f"{settings.tei_embed_url}/embed",
+            {"inputs": batch},
+            timeout=settings.tei_embed_timeout_s,
+        )
         out.extend(_check_dims(data, settings.embedding_dim))
     return out
 

@@ -8,6 +8,7 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl build-essential libpq-dev \
+        libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libharfbuzz-subset0 fonts-noto-core \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/pyproject.toml /app/pyproject.toml

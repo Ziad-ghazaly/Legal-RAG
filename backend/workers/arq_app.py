@@ -35,3 +35,4 @@ class WorkerSettings:
     on_shutdown = _shutdown
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)  # arq reads an instance
     job_timeout = 6 * 3600  # a full law (e.g. the Civil Code, 1,104 articles) on CPU TEI
+    max_jobs = 2  # jobs share one TEI; more parallelism only causes timeouts

@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     tei_rerank_url: str = "http://v3_tei_rerank:80"
     # CPU dev: ~1.6 s per 512-token pair; GPU prod: tens of ms.
     tei_rerank_timeout_s: float = 120.0
+    tei_embed_timeout_s: float = 600.0  # ingestion batches under load on CPU TEI
 
     # --- reviews ---
     daily_review_limit: int = 50
