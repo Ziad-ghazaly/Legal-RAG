@@ -36,6 +36,9 @@ def _references(results: list[ClaimResult], passages: dict[str, Passage]) -> dic
                 p = passages[e.pid]
                 refs[key][e.pid] = {
                     "pid": e.pid,
+                    "document_id": p.document_id,
+                    "unit_id": p.unit_id,
+                    "notes": p.notes or [],
                     "chunk_id": p.chunk_id,
                     "title_ar": p.title_ar,
                     "number": p.number,

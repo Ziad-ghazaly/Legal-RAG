@@ -43,6 +43,8 @@ async def get_chunk(
             "text": unit.text,
             "valid_from": unit.valid_from,
             "valid_to": unit.valid_to,
+            "status": unit.status,
+            "notes": unit.notes or [],
         },
         "document": {
             "id": doc.id,

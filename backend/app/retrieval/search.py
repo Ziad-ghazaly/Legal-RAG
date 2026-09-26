@@ -66,6 +66,7 @@ class Hit:
     valid_from: date | None = None
     valid_to: date | None = None
     effective_date: date | None = None
+    notes: list[str] | None = None
     vector_sim: float | None = None
     vector_rank: int | None = None
     bm25_score: float | None = None
@@ -192,7 +193,7 @@ async def _load(session: AsyncSession, ids: list[str]) -> dict[str, Hit]:
             "SELECT c.id::text, c.unit_id, c.document_id, c.collection_id, c.status, c.doc_type, "
             "c.authority_level, c.chunk_kind, c.context_header, c.text, u.article_number, "
             "u.article_label, d.title_ar, d.number, d.year, c.token_count, c.valid_from, "
-            "c.valid_to, d.effective_date "
+            "c.valid_to, d.effective_date, u.notes "
             "FROM chunks c JOIN units u ON u.id = c.unit_id "
             "JOIN documents d ON d.id = c.document_id "
             "WHERE c.id = ANY(CAST(:ids AS uuid[]))"
@@ -220,6 +221,7 @@ async def _load(session: AsyncSession, ids: list[str]) -> dict[str, Hit]:
             valid_from=r[16],
             valid_to=r[17],
             effective_date=r[18],
+            notes=r[19],
         )
         for r in rows
     }

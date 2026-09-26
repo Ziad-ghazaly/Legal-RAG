@@ -45,6 +45,7 @@ def _passage(pid: str, h: Hit) -> Passage:
         effective_date=h.effective_date,
         valid_from=h.valid_from,
         valid_to=h.valid_to,
+        notes=h.notes,
         pinned=h.pinned,
         score=h.score,
     )

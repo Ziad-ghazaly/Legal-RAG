@@ -33,6 +33,7 @@ class Passage:
     valid_from: date | None
     valid_to: date | None
     parent_text: str | None = None
+    notes: list[str] | None = None  # legislative history of the article
     pinned: bool = False
     score: float = 0.0
 

@@ -104,6 +104,8 @@ async def test_review_end_to_end_accepted(world) -> None:
     first_pid = claims["C1"]["evidence"][0]["pid"]
     assert report["passages"][first_pid]["unit_id"] == "labor/a41"  # pinned exact citation
     assert report["references"]["supporting"] and report["references"]["contradicting"] == []
+    ref = report["references"]["supporting"][0]
+    assert ref["document_id"] == "labor" and ref["unit_id"].startswith("labor/")
     assert report["similar_opinions"][0]["document_id"] == "op-1"
     assert body["approvals"] == [{"version": 1, "decision": "system_accept"}]
 
@@ -185,6 +187,8 @@ async def test_source_chunk_endpoint_respects_acl(world, pg) -> None:
     user = await login(world, "lawyer", "lawyer-pass")
     r = await world.get(f"/api/v1/sources/chunks/{cid}", headers=user)
     assert r.status_code == 200 and r.json()["unit"]["article_number"] == 41
+    assert r.json()["document"]["id"] == "labor" and r.json()["unit"]["status"] == "in_force"
+    assert r.json()["unit"]["notes"] == []
     admin = await login(world)
     await world.post("/api/v1/admin/users", headers=admin, json={
         "username": "outsider", "password": "pass-1234", "role": "user", "collection_ids": [2]})

@@ -49,6 +49,8 @@ def _user_message(batch: list[ClaimIn], per_claim: dict[str, list[Passage]]) -> 
         parts.append(
             f"[{p.pid}] {p.context_header} (الحالة: {_STATUS_AR.get(p.status, p.status)})\n{p.text}"
         )
+        if p.notes:
+            parts.append("ملاحظات تشريعية: " + "؛ ".join(p.notes))
         if p.parent_text:
             parts.append(f"(نص المادة كاملاً للسياق)\n{p.parent_text}")
     parts.append("\nالادعاءات:")

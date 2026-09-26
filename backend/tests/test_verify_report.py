@@ -55,3 +55,12 @@ async def test_suggested_opinion_only_for_needs_review_and_unknown_markers_are_s
     llm = FakeLLM({"summary_ar": "ملخص", "suggested_opinion_ar": "لا ينبغي"})
     out = await write_report(llm, [_res("supported")], "accepted", p)
     assert out == {"summary_ar": "ملخص", "suggested_opinion_ar": ""}
+
+
+@pytest.mark.asyncio
+async def test_verifier_sees_legislative_notes_of_each_passage() -> None:
+    p = passage("P1", notes=["تم وقف العمل بالمادة عملا بالامر الاميري المؤرخ 10 / 5 / 2024"], status="suspended")
+    llm = FakeLLM({"results": []})
+    await verify_claims(llm, [claim(1)], {"C1": [p]})
+    user = llm.calls[0]["user"]
+    assert "موقوف العمل" in user and "تم وقف العمل بالمادة" in user
