@@ -20,7 +20,7 @@ from app.verification.passages import gather_passages
 from app.verification.report import similar_opinions, write_report
 from app.verification.scoring import ACCEPT_THRESHOLD, NO_INFO_MESSAGE, score_review
 from app.verification.types import ClaimResult, Passage
-from app.verification.validate import validate
+from app.verification.validate import locate_claim, validate
 from app.verification.verify import verify_claims
 
 Publish = Callable[[str], Awaitable[None]]
@@ -114,6 +114,7 @@ async def run_pipeline(
                 "verdict": r.verdict,
                 "reasoning_ar": r.reasoning_ar,
                 "weight": 0 if r.claim.type == "factual_premise" else WEIGHTS[r.claim.materiality],
+                "span": locate_claim(r.claim.text_ar, text),
                 "evidence": [asdict(e) for e in r.evidence],
             }
             for r in results

@@ -4,6 +4,7 @@ Quotes are matched on normalize_for_search(); the stored quote is the exact matc
 span of the source text, recovered through character offsets.
 """
 
+import re
 import unicodedata
 from datetime import date
 from typing import Any
@@ -123,3 +124,26 @@ def validate(
         evidence=evidence,
         dropped=dropped,
     )
+
+
+_SENTENCE = re.compile(r"[^.؟!\n]+[.؟!]?")
+MIN_LOCATE = 70.0
+
+
+def locate_claim(claim: str, opinion: str) -> tuple[int, int] | None:
+    """Character span of the opinion sentence a claim was extracted from (for highlighting).
+
+    Claims are paraphrases, so this is a best-effort sentence match (token-set similarity
+    on normalized text); below MIN_LOCATE nothing is highlighted.
+    """
+    target = normalize_for_search(claim)
+    best: tuple[float, int, int] | None = None
+    for m in _SENTENCE.finditer(opinion):
+        sentence = m.group().strip()
+        if len(sentence.split()) < 3:
+            continue
+        score = fuzz.token_set_ratio(target, normalize_for_search(sentence))
+        if best is None or score > best[0]:
+            start = m.start() + (len(m.group()) - len(m.group().lstrip()))
+            best = (score, start, start + len(sentence))
+    return (best[1], best[2]) if best and best[0] >= MIN_LOCATE else None

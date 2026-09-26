@@ -271,3 +271,24 @@ def test_suspended_contradiction_never_blocks() -> None:
     r = result("C1", "supported", ev=[(law, "supports"), (const, "contradicts")])
     out = score_review([r], {"P1": law, "P2": const}, date(2026, 1, 1))
     assert r.evidence[1].blocking is False and out.status == "accepted"
+
+
+# ── claims highlighted in the opinion (sentence span of each claim) ─────────
+
+OPINION_TEXT = ("يرى المستشار أن العامل الذي أمضى في خدمة صاحب العمل سنة كاملة يستحق إجازة سنوية مدفوعة الأجر. "
+                "كما يجوز الاتفاق على فترة تجربة للعامل لا تتجاوز ستة أشهر.\nوالله الموفق.")
+
+
+def test_claim_is_located_on_its_sentence_in_the_opinion() -> None:
+    from app.verification.validate import locate_claim
+
+    s, e = locate_claim("يجوز الاتفاق على فترة تجربة لا تتجاوز ستة أشهر", OPINION_TEXT)
+    assert OPINION_TEXT[s:e] == "كما يجوز الاتفاق على فترة تجربة للعامل لا تتجاوز ستة أشهر."
+    s, e = locate_claim("العامل الذي أمضى سنة كاملة يستحق إجازة سنوية مدفوعة الأجر", OPINION_TEXT)
+    assert OPINION_TEXT[s:e].startswith("يرى المستشار") and OPINION_TEXT[s:e].endswith("الأجر.")
+
+
+def test_unrelated_claim_is_not_highlighted() -> None:
+    from app.verification.validate import locate_claim
+
+    assert locate_claim("يحق للمستأجر التأجير من الباطن بموافقة المؤجر الخطية", OPINION_TEXT) is None

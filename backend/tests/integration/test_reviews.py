@@ -98,6 +98,8 @@ async def test_review_end_to_end_accepted(world) -> None:
     assert report["summary_ar"] == "ملخص التحقق" and report["suggested_opinion_ar"] == ""
     claims = {c["id"]: c for c in report["claims"]}
     assert claims["C1"]["verdict"] == "supported" and claims["C3"]["verdict"] is None  # factual premise
+    s, e = claims["C1"]["span"]
+    assert "إجازة سنوية مدفوعة الأجر" in body["opinion_text"][s:e]
     ev = claims["C1"]["evidence"]
     assert len(ev) == 1 and ev[0]["quote_ar"] in report["passages"][ev[0]["pid"]]["text"]  # P99 dropped
     assert report["dropped_evidence_count"] >= 2
