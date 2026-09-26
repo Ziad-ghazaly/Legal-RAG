@@ -127,6 +127,18 @@ export async function streamEvents(
   }
 }
 
+/** Download the approved opinion as PDF (authenticated fetch → blob → save). */
+export async function downloadPdf(reviewId: string): Promise<void> {
+  const res = await raw(`/reviews/${reviewId}/export.pdf`);
+  if (!res.ok) throw new ApiError(res.status, await detail(res));
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `رأي-قانوني-${reviewId.slice(0, 8)}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── types (mirror the backend payloads) ─────────────────────────────────────
 
 export type Me = { id: string; username: string; role: "admin" | "reviewer" | "user"; is_active: boolean };
@@ -207,6 +219,10 @@ export type ReviewDetail = {
   created_at: string;
   report: Report | null;
   approvals: { version: number; decision: string }[];
+  approved_by: string | null;
+  approved_at: string | null;
+  rejection_reason: string | null;
+  final_text: string;
 };
 export type SourceChunk = {
   chunk: { id: string; text: string; context_header: string; status: string };

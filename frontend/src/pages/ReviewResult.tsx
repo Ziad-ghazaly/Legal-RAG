@@ -1,7 +1,8 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { api, streamEvents, type Reference, type Report, type ReviewDetail, type SourceChunk } from "../api";
+import { useNavigate, useParams } from "react-router-dom";
+import { api, downloadPdf, json, streamEvents, type Reference, type Report, type ReviewDetail, type SourceChunk } from "../api";
+import { useAuth } from "../auth";
 import { Chip, ErrorNote, StatusBadge, Stepper } from "../components/ui";
 import { CLAIM_TYPE_AR, DOC_TYPE_AR, SOURCE_STATUS_AR, VERDICT_AR, citation, formatDate } from "../labels";
 
@@ -56,6 +57,9 @@ export default function ReviewResult() {
             <StatusBadge status={r.status} />
             <span>{formatDate(r.created_at)}</span>
             {r.as_of_date && <span>التاريخ المرجعي: <span dir="ltr">{r.as_of_date}</span></span>}
+            {r.status === "approved" && r.approved_by && (
+              <span>اعتمده {r.approved_by}{r.approved_at ? ` · ${formatDate(r.approved_at)}` : ""}</span>
+            )}
           </div>
         </div>
         {r.score !== null && (
@@ -64,7 +68,7 @@ export default function ReviewResult() {
             <div className="text-xs text-muted">درجة التحقق</div>
           </div>
         )}
-        <ActionBar status={r.status} />
+        <ActionBar r={r} />
       </header>
 
       {processing && (
@@ -74,6 +78,9 @@ export default function ReviewResult() {
         </div>
       )}
       {r.status === "failed" && <ErrorNote error={new Error(r.error_ar ?? "فشل التحقق.")} />}
+      {r.status === "rejected" && r.rejection_reason && (
+        <p className="rounded-md bg-danger-light px-3 py-2 text-danger">سبب الرفض: {r.rejection_reason}</p>
+      )}
 
       {report && (
         <>
@@ -107,18 +114,60 @@ export default function ReviewResult() {
   );
 }
 
-function ActionBar({ status }: { status: string }) {
-  const soon = "متاح في مرحلة سير عمل المراجعة (P4)";
-  if (status === "accepted") return <button className="btn btn-ghost" disabled title={soon}>تصدير</button>;
-  if (status === "needs_review" || status === "no_information")
-    return (
-      <div className="flex gap-2">
-        {status === "needs_review" && <button className="btn btn-primary" disabled title={soon}>اعتماد</button>}
-        <button className="btn btn-ghost" disabled title={soon}>تعديل واعتماد</button>
-        <button className="btn btn-ghost" disabled title={soon}>رفض</button>
+function ActionBar({ r }: { r: ReviewDetail }) {
+  const { me } = useAuth();
+  const qc = useQueryClient();
+  const nav = useNavigate();
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState("");
+  const staff = me?.role === "admin" || me?.role === "reviewer";
+  const actionable = ["needs_review", "no_information", "accepted"].includes(r.status);
+  const act = useMutation({
+    mutationFn: (p: { path: string; body: unknown }) => api(`/reviews/${r.id}/${p.path}`, json(p.body)),
+    onSuccess: () => {
+      setRejecting(false);
+      qc.invalidateQueries({ queryKey: ["review", r.id] });
+      qc.invalidateQueries({ queryKey: ["reviews"] });
+    },
+  });
+  const pdf = useMutation({ mutationFn: () => downloadPdf(r.id) });
+  return (
+    <div className="flex flex-col items-end gap-2">
+      <div className="flex flex-wrap gap-2">
+        {(r.status === "accepted" || r.status === "approved") && (
+          <button className="btn btn-primary" onClick={() => pdf.mutate()} disabled={pdf.isPending}>
+            {pdf.isPending ? "جارٍ تجهيز الملف…" : "تنزيل PDF"}
+          </button>
+        )}
+        {staff && actionable && (
+          <>
+            <button
+              className="btn btn-primary"
+              disabled={act.isPending}
+              onClick={() => window.confirm("اعتماد الرأي كما هو؟") && act.mutate({ path: "approve", body: {} })}
+            >
+              اعتماد
+            </button>
+            <button className="btn btn-ghost" onClick={() => nav(`/reviews/${r.id}/edit`)}>تعديل واعتماد</button>
+            <button className="btn btn-ghost" onClick={() => setRejecting(!rejecting)}>رفض</button>
+          </>
+        )}
       </div>
-    );
-  return null;
+      {rejecting && (
+        <form
+          className="flex w-full max-w-md gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            act.mutate({ path: "reject", body: { reason } });
+          }}
+        >
+          <input className="input" placeholder="سبب الرفض" value={reason} onChange={(e) => setReason(e.target.value)} required minLength={3} autoFocus />
+          <button className="btn btn-ghost text-danger" disabled={act.isPending}>تأكيد الرفض</button>
+        </form>
+      )}
+      <ErrorNote error={act.error ?? pdf.error} />
+    </div>
+  );
 }
 
 function Summary({ report }: { report: Report }) {

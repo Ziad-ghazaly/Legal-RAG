@@ -5,6 +5,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AuthProvider, RequireAuth } from "./auth";
 import { Layout } from "./components/ui";
 import Admin from "./pages/Admin";
+import EditReview from "./pages/EditReview";
 import Login from "./pages/Login";
 import NewReview from "./pages/NewReview";
 import ReviewResult from "./pages/ReviewResult";
@@ -24,6 +25,7 @@ createRoot(document.getElementById("root")!).render(
               <Route index element={<Reviews />} />
               <Route path="reviews/new" element={<NewReview />} />
               <Route path="reviews/:id" element={<ReviewResult />} />
+              <Route path="reviews/:id/edit" element={<RequireAuth roles={["admin", "reviewer"]}><EditReview /></RequireAuth>} />
               <Route path="admin" element={<RequireAuth roles={["admin"]}><Admin /></RequireAuth>} />
             </Route>
           </Routes>
